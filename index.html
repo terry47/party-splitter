@@ -32,7 +32,7 @@
     button.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); width: auto; padding: 4px 8px; font-size: 0.8rem; }
     button.btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); width: auto; padding: 4px 8px; font-size: 0.8rem; }
     button.btn-secondary { background: #475569; color: #fff; margin-top: 6px; }
-    button.btn-accent { background: var(--accent); color: #000; margin-top: 10px; }
+    button.btn-accent { background: var(--accent); color: #000; margin-top: 14px; }
     .member-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .tag { background: #334155; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
     .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
@@ -52,7 +52,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.0.0</span>
+    <span class="version-badge">v2.1.0</span>
   </div>
 
   <!-- 0. 歷史聚會存檔與切換 -->
@@ -106,16 +106,9 @@
     </div>
   </div>
 
-  <!-- 3. 預設收款資料 (選填) -->
+  <!-- 3. 結算明細、收款資料與 WhatsApp 匯報 -->
   <div class="card">
-    <h2>3. 預設收款資料 (選填)</h2>
-    <label>轉數快 (FPS) / PayMe 追數備註</label>
-    <input type="text" id="paymentInfo" placeholder="例如：Eddy FPS 91234567" oninput="updatePaymentInfo()">
-  </div>
-
-  <!-- 4. 結算明細 -->
-  <div class="card">
-    <h2>4. 結算明細與 WhatsApp 匯報</h2>
+    <h2>3. 結算明細與 WhatsApp 匯報</h2>
     
     <div class="total-banner">
       <span>💰 Party 總消費 (Total)：</span>
@@ -133,12 +126,16 @@
 
     <h3 style="margin-top: 16px;">💡 最簡化過數方案</h3>
     <div class="settlement-box" id="settlementPlan">點擊計算後顯示過數方案...</div>
+
+    <div style="margin-top: 16px;">
+      <label>💳 收款資料 (選填，將會包含在 WhatsApp 訊息中)</label>
+      <input type="text" id="paymentInfo" placeholder="例如：Eddy FPS 91234567 / PayMe link" oninput="updatePaymentInfo()">
+    </div>
     
     <button class="btn-accent" onclick="copyWhatsAppText()">📋 複製完整結算明細表 (WhatsApp)</button>
   </div>
 
   <script>
-    // 多 Party 存檔結構
     let db = {
       currentId: null,
       parties: []
@@ -155,10 +152,8 @@
     window.onload = () => {
       loadDB();
       if (db.parties.length === 0) {
-        // 如果完全沒有存檔，自動建立第一個預設聚會
         createNewParty(false);
       } else {
-        // 預設載入第一個或上次選中的聚會
         currentParty = db.parties[0];
       }
       renderAll();
@@ -177,7 +172,6 @@
     }
 
     function saveDB() {
-      // 更新當前聚會到 db 陣列中
       const index = db.parties.findIndex(p => p.id === currentParty.id);
       if (index !== -1) {
         db.parties[index] = currentParty;
@@ -197,7 +191,7 @@
         items: [],
         paymentInfo: ''
       };
-      db.parties.unshift(newParty); // 放到最前
+      db.parties.unshift(newParty);
       currentParty = newParty;
       saveDB();
       renderAll();
