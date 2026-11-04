@@ -25,7 +25,8 @@
     .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border-color); }
     h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
     label { display: block; font-size: 0.85rem; color: var(--text-sub); margin-bottom: 4px; }
-    input[type="text"], input[type="number"], select { width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 0.95rem; margin-bottom: 10px; }
+    input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 0.95rem; margin-bottom: 10px; }
+    textarea { resize: vertical; height: 90px; font-family: monospace; font-size: 0.8rem; }
     button { width: 100%; padding: 10px; background: var(--primary); color: #0f172a; font-weight: bold; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
     button:hover { background: var(--primary-hover); }
     .btn-group { display: flex; gap: 6px; }
@@ -46,25 +47,44 @@
     .total-banner span { font-size: 1.1rem; color: var(--accent); font-weight: bold; }
     .settlement-box { background: #0f172a; border-left: 4px solid var(--accent); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; margin-top: 10px; }
     .flex-row { display: flex; gap: 8px; align-items: center; }
+    .json-panel { background: #0f172a; padding: 10px; border-radius: 6px; margin-top: 10px; border: 1px dashed var(--border-color); display: none; }
   </style>
 </head>
 <body>
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.1.0</span>
+    <span class="version-badge">v2.2.0</span>
   </div>
 
-  <!-- 0. 歷史聚會存檔與切換 -->
+  <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
   <div class="card" style="border-color: var(--primary);">
-    <h2>📁 聚會存檔管理</h2>
+    <h2>📁 聚會存檔與 JSON 協作</h2>
     <div style="margin-bottom: 8px;">
       <label>切換歷史聚會</label>
       <select id="partySelector" onchange="switchParty(this.value)"></select>
     </div>
-    <div class="flex-row">
+    <div class="flex-row" style="margin-bottom: 8px;">
       <button onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 建立新聚會</button>
       <button onclick="deleteCurrentParty()" class="btn-danger" style="width: 100%; padding: 10px;">🗑️ 刪除目前聚會</button>
+    </div>
+    <div class="flex-row">
+      <button onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會 JSON</button>
+      <button onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0;">📥 匯入聚會 JSON</button>
+    </div>
+
+    <!-- 匯出面板 -->
+    <div id="exportPanel" class="json-panel">
+      <label>將下方 JSON 複製傳給朋友：</label>
+      <textarea id="exportTextarea" readonly></textarea>
+      <button onclick="copyJsonText()" style="background: var(--accent); color: #000; padding: 6px;">📋 複製 JSON 到剪貼簿</button>
+    </div>
+
+    <!-- 匯入面板 -->
+    <div id="importPanel" class="json-panel">
+      <label>請貼上朋友傳來的聚會 JSON 字串：</label>
+      <textarea id="importTextarea" placeholder="在此貼上 JSON..."></textarea>
+      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 6px;">✨ 確認並載入聚會</button>
     </div>
   </div>
 
@@ -238,6 +258,77 @@
           ${p.partyName || '未命名聚會'} (${p.items.length} 筆消費)
         </option>
       `).join('');
+    }
+
+    // 📤 📥 JSON 匯出與安全匯入控制
+    function toggleJsonPanel(type) {
+      const exportPanel = document.getElementById('exportPanel');
+      const importPanel = document.getElementById('importPanel');
+      
+      if (type === 'export') {
+        if (exportPanel.style.display === 'block') {
+          exportPanel.style.display = 'none';
+        } else {
+          exportPanel.style.display = 'block';
+          importPanel.style.display = 'none';
+          document.getElementById('exportTextarea').value = JSON.stringify(currentParty, null, 2);
+        }
+      } else {
+        if (importPanel.style.display === 'block') {
+          importPanel.style.display = 'none';
+        } else {
+          importPanel.style.display = 'block';
+          exportPanel.style.display = 'none';
+        }
+      }
+    }
+
+    function copyJsonText() {
+      const textarea = document.getElementById('exportTextarea');
+      textarea.select();
+      navigator.clipboard.writeText(textarea.value).then(() => {
+        alert('已成功複製聚會 JSON 至剪貼簿！');
+      });
+    }
+
+    function importPartyJson() {
+      const raw = document.getElementById('importTextarea').value.trim();
+      if (!raw) {
+        alert('請先貼上 JSON 字串！');
+        return;
+      }
+
+      try {
+        const imported = JSON.parse(raw);
+        
+        // 嚴格結構校驗 (Sanity Check)
+        if (!imported.id || !Array.isArray(imported.members) || !Array.isArray(imported.items)) {
+          alert('JSON 格式不正確：缺少必要的聚會欄位 (id, members, items)！');
+          return;
+        }
+
+        // 檢查是否已存在相同 ID
+        const existingIndex = db.parties.findIndex(p => p.id === imported.id);
+        if (existingIndex !== -1) {
+          if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，是否覆蓋更新？`)) {
+            return;
+          }
+          db.parties[existingIndex] = imported;
+        } else {
+          db.parties.unshift(imported);
+        }
+
+        currentParty = imported;
+        saveDB();
+        renderAll();
+        document.getElementById('importPanel').style.display = 'none';
+        document.getElementById('importTextarea').value = '';
+        alert('🎉 成功成功匯入聚會！');
+
+      } catch(e) {
+        alert('解析 JSON 失敗，請確認貼上的文字格式是否完整正確！');
+        console.error(e);
+      }
     }
 
     function updateMembers() {
