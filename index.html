@@ -39,7 +39,6 @@
     .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
     .checkbox-group label { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 0.9rem; margin: 0; cursor: pointer; }
     
-    /* 🛠️ 優化後的消費項目 Row 排版，徹底解決手機端按鈕變形問題 */
     .item-row { 
       display: flex; 
       flex-direction: column; 
@@ -47,14 +46,8 @@
       padding: 12px 0; 
       border-bottom: 1px dashed var(--border-color); 
     }
-    .item-info {
-      word-break: break-all;
-    }
-    .item-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
+    .item-info { word-break: break-all; }
+    .item-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
     .table-container { overflow-x: auto; margin-top: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -71,7 +64,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.6.0</span>
+    <span class="version-badge">v2.7.0</span>
   </div>
 
   <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
@@ -85,30 +78,40 @@
       <button onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 建立新聚會</button>
       <button onclick="deleteCurrentParty()" class="btn-danger" style="width: 100%; padding: 10px;">🗑️ 刪除目前聚會</button>
     </div>
+    <div class="flex-row" style="margin-bottom: 8px;">
+      <button onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會</button>
+      <button onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="margin:0; background: #0369a1;">📦 匯出全部 (All)</button>
+    </div>
     <div class="flex-row">
-      <button onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會 JSON</button>
-      <button onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0;">📥 匯入聚會 JSON</button>
+      <button onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0; width:100%;">📥 智慧匯入 JSON</button>
     </div>
 
-    <!-- 匯出面板 -->
+    <!-- 匯出單一面板 -->
     <div id="exportPanel" class="json-panel">
-      <label>將下方 JSON 複製傳給朋友：</label>
+      <label>目前聚會的 JSON 字串：</label>
       <textarea id="exportTextarea" readonly></textarea>
-      <button onclick="copyJsonText()" style="background: var(--accent); color: #000; padding: 6px;">📋 複製 JSON 到剪貼簿</button>
+      <button onclick="copyJsonText('exportTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製單一聚會 JSON</button>
+    </div>
+
+    <!-- 匯出全部面板 -->
+    <div id="exportAllPanel" class="json-panel">
+      <label>全部歷史聚會資料庫的 JSON 字串 (完整備份)：</label>
+      <textarea id="exportAllTextarea" readonly></textarea>
+      <button onclick="copyJsonText('exportAllTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製全部資料庫 JSON</button>
     </div>
 
     <!-- 匯入面板 -->
     <div id="importPanel" class="json-panel">
-      <label>請貼上朋友傳來的聚會 JSON 字串：</label>
+      <label>請貼上單一聚會或全部備份的 JSON 字串：</label>
       <textarea id="importTextarea" placeholder="在此貼上 JSON..."></textarea>
       
-      <label style="margin-top: 8px;">匯入衝突處理策略：</label>
+      <label style="margin-top: 8px;">單一聚會匯入策略：</label>
       <select id="importStrategy">
-        <option value="append">➕ 追加載入 (Merge/Append)：作為全新獨立聚會加入歷史清單</option>
-        <option value="overwrite">🔄 覆蓋更新 (Overwrite)：若 ID 相同則取代現有記錄</option>
+        <option value="append">➕ 追加載入 (作為獨立新聚會加入清單)</option>
+        <option value="overwrite">🔄 覆蓋更新 (若 ID 相同則取代現有記錄)</option>
       </select>
 
-      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 8px;">✨ 確認並執行匯入</button>
+      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 8px;">✨ 確認並執行智慧匯入</button>
     </div>
   </div>
 
@@ -214,7 +217,7 @@
       if (db.parties.length === 0) {
         createNewParty(false);
       } else {
-        currentParty = db.parties[0];
+        currentParty = db.parties.find(p => p.id === db.currentId) || db.parties[0];
       }
       renderAll();
     };
@@ -236,7 +239,7 @@
       if (index !== -1) {
         db.parties[index] = currentParty;
       } else {
-        db.parties.push(currentParty);
+        db.parties.unshift(currentParty);
       }
       db.currentId = currentParty.id;
       localStorage.setItem('party_splitter_db', JSON.stringify(db));
@@ -264,6 +267,8 @@
       const found = db.parties.find(p => p.id === partyId);
       if (found) {
         currentParty = found;
+        db.currentId = currentParty.id;
+        localStorage.setItem('party_splitter_db', JSON.stringify(db));
         resetForm();
         renderAll();
       }
@@ -317,34 +322,33 @@
 
     function toggleJsonPanel(type) {
       const exportPanel = document.getElementById('exportPanel');
+      const exportAllPanel = document.getElementById('exportAllPanel');
       const importPanel = document.getElementById('importPanel');
       
+      exportPanel.style.display = 'none';
+      exportAllPanel.style.display = 'none';
+      importPanel.style.display = 'none';
+
       if (type === 'export') {
-        if (exportPanel.style.display === 'block') {
-          exportPanel.style.display = 'none';
-        } else {
-          exportPanel.style.display = 'block';
-          importPanel.style.display = 'none';
-          document.getElementById('exportTextarea').value = JSON.stringify(currentParty, null, 2);
-        }
-      } else {
-        if (importPanel.style.display === 'block') {
-          importPanel.style.display = 'none';
-        } else {
-          importPanel.style.display = 'block';
-          exportPanel.style.display = 'none';
-        }
+        exportPanel.style.display = 'block';
+        document.getElementById('exportTextarea').value = JSON.stringify(currentParty, null, 2);
+      } else if (type === 'exportAll') {
+        exportAllPanel.style.display = 'block';
+        document.getElementById('exportAllTextarea').value = JSON.stringify(db, null, 2);
+      } else if (type === 'import') {
+        importPanel.style.display = 'block';
       }
     }
 
-    function copyJsonText() {
-      const textarea = document.getElementById('exportTextarea');
+    function copyJsonText(elementId) {
+      const textarea = document.getElementById(elementId);
       textarea.select();
       navigator.clipboard.writeText(textarea.value).then(() => {
-        alert('已成功複製聚會 JSON 至剪貼簿！');
+        alert('已成功複製 JSON 至剪貼簿！');
       });
     }
 
+    // 📥 智慧匯入：支援完整 Database 備份或單一 Party 匯入
     function importPartyJson() {
       const raw = document.getElementById('importTextarea').value.trim();
       const strategy = document.getElementById('importStrategy').value;
@@ -356,32 +360,48 @@
 
       try {
         const imported = JSON.parse(raw);
-        if (!imported.id || !Array.isArray(imported.members) || !Array.isArray(imported.items)) {
-          alert('JSON 格式不正確：缺少必要的聚會欄位 (id, members, items)！');
+
+        // 判斷是否為「全資料庫備份」(包含 parties 陣列)
+        if (imported.parties && Array.isArray(imported.parties)) {
+          if (!confirm(`確定要還原整份資料庫嗎？這將會取代你現有的全部聚會紀錄（共 ${imported.parties.length} 個聚會）。`)) return;
+          
+          db = imported;
+          if (!db.parties.some(p => p.id === db.currentId)) {
+            db.currentId = db.parties.length > 0 ? db.parties[0].id : null;
+          }
+          currentParty = db.parties.find(p => p.id === db.currentId) || db.parties[0];
+          saveDB();
+          renderAll();
+          alert('🎉 成功還原全部聚會資料庫！');
+        } 
+        // 判斷是否為「單一 Party 格式」
+        else if (imported.id && Array.isArray(imported.members) && Array.isArray(imported.items)) {
+          const existingIndex = db.parties.findIndex(p => p.id === imported.id);
+
+          if (existingIndex !== -1 && strategy === 'overwrite') {
+            if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，確定要完全覆蓋嗎？`)) return;
+            db.parties[existingIndex] = imported;
+            currentParty = imported;
+            alert('🎉 成功覆蓋更新聚會！');
+          } else {
+            let newPartyToImport = { ...imported };
+            if (existingIndex !== -1) {
+              newPartyToImport.id = 'party_' + Date.now();
+              newPartyToImport.partyName = (imported.partyName || '匯入聚會') + ' (副本)';
+            }
+
+            db.parties.unshift(newPartyToImport);
+            currentParty = newPartyToImport;
+            alert('🎉 成功將聚會記錄追加載入至你的清單中！');
+          }
+
+          saveDB();
+          renderAll();
+        } else {
+          alert('JSON 格式不識別：請貼上正確的單一聚會或全部備份 JSON！');
           return;
         }
 
-        const existingIndex = db.parties.findIndex(p => p.id === imported.id);
-
-        if (existingIndex !== -1 && strategy === 'overwrite') {
-          if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，確定要完全覆蓋嗎？`)) return;
-          db.parties[existingIndex] = imported;
-          currentParty = imported;
-          alert('🎉 成功覆蓋更新聚會！');
-        } else {
-          let newPartyToImport = { ...imported };
-          if (existingIndex !== -1) {
-            newPartyToImport.id = 'party_' + Date.now();
-            newPartyToImport.partyName = (imported.partyName || '匯入聚會') + ' (副本)';
-          }
-
-          db.parties.unshift(newPartyToImport);
-          currentParty = newPartyToImport;
-          alert('🎉 成功將聚會記錄追加載入至你的清單中！');
-        }
-
-        saveDB();
-        renderAll();
         document.getElementById('importPanel').style.display = 'none';
         document.getElementById('importTextarea').value = '';
 
