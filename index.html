@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Party 夾錢計算器</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --border-color: #334155;
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --accent: #22c55e;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; max-width: 600px; margin: 0 auto; line-height: 1.5; }
+    h1 { text-align: center; font-size: 1.5rem; margin-bottom: 16px; color: var(--primary); }
+    .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border-color); }
+    h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
+    label { display: block; font-size: 0.85rem; color: var(--text-sub); margin-bottom: 4px; }
+    input[type="text"], input[type="number"], select { width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 0.95rem; margin-bottom: 10px; }
+    button { width: 100%; padding: 10px; background: var(--primary); color: #0f172a; font-weight: bold; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
+    button:hover { background: var(--primary-hover); }
+    button.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); width: auto; padding: 4px 8px; font-size: 0.8rem; }
+    .member-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .tag { background: #334155; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
+    .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
+    .checkbox-group label { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 0.9rem; margin: 0; cursor: pointer; }
+    .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--border-color); }
+    .table-container { overflow-x: auto; margin-top: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border-color); }
+    th { color: var(--text-sub); }
+    .settlement-box { background: #0f172a; border-left: 4px solid var(--accent); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9rem; white-space: pre-wrap; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>🎉 Party 夾錢計算器</h1>
+
+  <!-- 1. Party 設定 -->
+  <div class="card">
+    <h2>1. 聚會與成員設定</h2>
+    <label>Party 名稱</label>
+    <input type="text" id="partyName" placeholder="例如：10/18 蛙＋馬 Party">
+    
+    <label>成員名單（以逗號隔開）</label>
+    <input type="text" id="memberInput" placeholder="Terry, Eddy, Anna, Carrie, Roiphy, Sammy">
+    <button onclick="updateMembers()">更新成員名單</button>
+    <div class="member-tags" id="memberTags"></div>
+  </div>
+
+  <!-- 2. 消費項目 -->
+  <div class="card">
+    <h2>2. 新增消費項目</h2>
+    <label>項目名稱</label>
+    <input type="text" id="itemName" placeholder="例如：PIZZA / 租場費">
+    
+    <label>總金額 (HKD)</label>
+    <input type="number" id="itemCost" placeholder="0">
+    
+    <label>先墊付款項人 (Paid By)</label>
+    <select id="itemPayer"></select>
+    
+    <label>分攤成員（預設全員）</label>
+    <div class="checkbox-group" id="splitCheckboxes"></div>
+    
+    <button onclick="addItem()">加入項目</button>
+
+    <div style="margin-top: 16px;">
+      <h3>已項目列表</h3>
+      <div id="itemList"></div>
+    </div>
+  </div>
+
+  <!-- 3. 收款資料 -->
+  <div class="card">
+    <h2>3. 預設收款資料 (選填)</h2>
+    <label>轉數快 (FPS) / PayMe 追數備註</label>
+    <input type="text" id="paymentInfo" placeholder="例如：Eddy FPS 91234567 / Anna PayMe link">
+  </div>
+
+  <!-- 4. 結算結果 -->
+  <div class="card">
+    <h2>4. 結算明細與追數 Text</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr><th>成員</th><th>應付</th><th>已墊付</th><th>淨額</th></tr>
+        </thead>
+        <tbody id="summaryTable"></tbody>
+      </table>
+    </div>
+
+    <h3 style="margin-top: 16px;">💡 最簡化過數方案</h3>
+    <div class="settlement-box" id="settlementPlan">點擊計算後顯示過數方案...</div>
+    
+    <button onclick="copyWhatsAppText()" style="margin-top: 12px; background: var(--accent); color: #000;">📋 複製 WhatsApp 追數訊息</button>
+  </div>
+
+  <script>
+    let state = {
+      partyName: '10/18 蛙＋馬 Party',
+      members: ['Terry', 'Eddy', 'Anna', 'Carrie', 'Roiphy', 'Sammy', '猩猩', '馬', 'Athena', 'Anthea'],
+      items: [],
+      paymentInfo: ''
+    };
+
+    // 載入與初始化
+    window.onload = () => {
+      const saved = localStorage.getItem('party_splitter_data');
+      if (saved) {
+        state = JSON.parse(saved);
+        document.getElementById('partyName').value = state.partyName || '';
+        document.getElementById('memberInput').value = state.members.join(', ');
+        document.getElementById('paymentInfo').value = state.paymentInfo || '';
+      } else {
+        document.getElementById('partyName').value = state.partyName;
+        document.getElementById('memberInput').value = state.members.join(', ');
+      }
+      renderAll();
+    };
+
+    function saveData() {
+      state.partyName = document.getElementById('partyName').value;
+      state.paymentInfo = document.getElementById('paymentInfo').value;
+      localStorage.setItem('party_splitter_data', JSON.stringify(state));
+      calculate();
+    }
+
+    function updateMembers() {
+      const input = document.getElementById('memberInput').value;
+      state.members = input.split(/[,，]/).map(m => m.trim()).filter(m => m !== '');
+      renderAll();
+      saveData();
+    }
+
+    function renderAll() {
+      // Tags
+      document.getElementById('memberTags').innerHTML = state.members.map(m => `<span class="tag">${m}</span>`).join('');
+      
+      // Payers Select
+      const payerSelect = document.getElementById('itemPayer');
+      payerSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
+      
+      // Split Checkboxes
+      const checkboxes = document.getElementById('splitCheckboxes');
+      checkboxes.innerHTML = state.members.map(m => `
+        <label><input type="checkbox" value="${m}" checked> ${m}</label>
+      `).join('');
+
+      renderItems();
+      calculate();
+    }
+
+    function addItem() {
+      const name = document.getElementById('itemName').value.trim();
+      const cost = parseFloat(document.getElementById('itemCost').value);
+      const payer = document.getElementById('itemPayer').value;
+      const checkedMembers = Array.from(document.querySelectorAll('#splitCheckboxes input:checked')).map(cb => cb.value);
+
+      if (!name || isNaN(cost) || cost <= 0 || checkedMembers.length === 0) {
+        alert('請填寫完整項目名稱、有效金額及至少一位分攤成員！');
+        return;
+      }
+
+      state.items.push({ id: Date.now(), name, cost, payer, splitWith: checkedMembers });
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemCost').value = '';
+      
+      renderItems();
+      saveData();
+    }
+
+    function removeItem(id) {
+      state.items = state.items.filter(i => i.id !== id);
+      renderItems();
+      saveData();
+    }
+
+    function renderItems() {
+      const list = document.getElementById('itemList');
+      if (state.items.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-sub); font-size:0.85rem;">暫無項目</p>';
+        return;
+      }
+      list.innerHTML = state.items.map(item => `
+        <div class="item-row">
+          <div>
+            <strong>${item.name}</strong> - $${item.cost} 
+            <br><small style="color:var(--text-sub)">${item.payer} 付款 | ${item.splitWith.length} 人分攤</small>
+          </div>
+          <button class="btn-danger" onclick="removeItem(${item.id})">刪除</button>
+        </div>
+      `).join('');
+    }
+
+    function calculate() {
+      let totals = {};
+      state.members.forEach(m => totals[m] = { shouldPay: 0, paid: 0, net: 0 });
+
+      state.items.forEach(item => {
+        if (totals[item.payer]) {
+          totals[item.payer].paid += item.cost;
+        }
+        const perPerson = item.cost / item.splitWith.length;
+        item.splitWith.forEach(m => {
+          if (totals[m]) {
+            totals[m].shouldPay += perPerson;
+          }
+        });
+      });
+
+      let summaryHtml = '';
+      let debtors = [];
+      let creditors = [];
+
+      state.members.forEach(m => {
+        const net = totals[m].paid - totals[m].shouldPay;
+        totals[m].net = net;
+        summaryHtml += `
+          <tr>
+            <td><strong>${m}</strong></td>
+            <td>$${Math.round(totals[m].shouldPay)}</td>
+            <td>$${Math.round(totals[m].paid)}</td>
+            <td style="color:${net >= 0 ? 'var(--accent)' : 'var(--danger)'}">
+              ${net >= 0 ? '+' : ''}$${Math.round(net)}
+            </td>
+          </tr>
+        `;
+
+        if (net < -0.5) debtors.push({ name: m, amount: -net });
+        if (net > 0.5) creditors.push({ name: m, amount: net });
+      });
+
+      document.getElementById('summaryTable').innerHTML = summaryHtml;
+
+      // 最簡轉帳演算法 (Greedy Algorithm)
+      let transactions = [];
+      let i = 0, j = 0;
+      while (i < debtors.length && j < creditors.length) {
+        let pay = Math.min(debtors[i].amount, creditors[j].amount);
+        transactions.push(`${debtors[i].name} ➡️ ${creditors[j].name}: $${Math.round(pay)}`);
+        
+        debtors[i].amount -= pay;
+        creditors[j].amount -= pay;
+
+        if (debtors[i].amount < 0.5) i++;
+        if (creditors[j].amount < 0.5) j++;
+      }
+
+      const planText = transactions.length > 0 ? transactions.join('\n') : '🎉 全部結清，無需過數！';
+      document.getElementById('settlementPlan').innerText = planText;
+    }
+
+    function copyWhatsAppText() {
+      saveData();
+      const name = document.getElementById('partyName').value || 'Party';
+      const plan = document.getElementById('settlementPlan').innerText;
+      const payment = document.getElementById('paymentInfo').value;
+
+      let totalCost = state.items.reduce((sum, item) => sum + item.cost, 0);
+
+      let text = `🎉 *${name} 結算報告*\n`;
+      text += `💰 總消費：$${Math.round(totalCost)}\n`;
+      text += `----------------------\n`;
+      text += `👉 *建議過數方案：*\n${plan}\n`;
+      if (payment) {
+        text += `----------------------\n`;
+        text += `💳 *收款資料：*\n${payment}\n`;
+      }
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('已成功複製追數訊息至剪貼簿！可以直接貼到 WhatsApp');
+      });
+    }
+  </script>
+</body>
+</html>
