@@ -1,2 +1,45 @@
-# party-splitter
-聚會 Party 夾錢拆帳神將！支援勾選分攤、自動計「最簡過數方案」、一鍵複製 WhatsApp 追數 Text + 帶入 PayMe/FPS。
+# 🎉 Party 夾錢計算器 (Party Splitter)
+
+一個專為聚會、飯局、活動設計的**輕量級、行動優先、單一檔案 (Single-file) 夾錢分帳 Web App**。無需安裝任何 App 或後端伺服器，直接透過 GitHub Pages 即可隨開隨用！
+
+🌐 **線上預覽**：[https://terry47.github.io/party-splitter/](https://terry47.github.io/party-splitter/) （請換成你的 GitHub Pages 網址）
+
+---
+
+## ✨ 核心特色 (Features)
+
+1. **📱 極致輕量與行動優先**：採用純前端 HTML/JS 實作，單一 `index.html` 搞定，載入極快且完美適應手機瀏覽器。
+2. **🆔 ID 驅動的成員管理**：突破傳統名字綁定的限制。成員中途改名或重新排序時，系統會自動透過唯一 ID 追蹤關聯，絕不會造成帳目錯亂。
+3. **📁 多聚會歷史存檔 (v2.0)**：支援在同一個瀏覽器內管理多個不同的 Party 紀錄，隨時切換、新增或刪除歷史帳目。
+4. **📤 跨裝置純 JSON 同步 (v2.2)**：無須繁雜的雲端後端，支援「以 Party 為單位的 JSON 匯出/匯入」，朋友之間傳一段文字即可完美同步或備份聚會資料。
+5. **🎯 靈活的過數方案 (v2.3)**：
+   * **⚡ 最簡過數模式**：自動計算淨額並互相抵銷，以最少轉帳次數完成結算。
+   * **🎯 大掌櫃集中收支模式**：指定一位大掌櫃統一收齊所有人的款項，再轉給實際代付者。
+6. **📋 WhatsApp 一鍵匯報**：一鍵將「總消費」、「個人明細表」、「過數方案」與「收款資料 (FPS/PayMe)」排版成清晰的 WhatsApp 訊息格式直接貼到群組。
+
+---
+
+## 🛠️ 技術架構 (Tech Stack)
+
+* **前端**：HTML5, CSS3 (Modern Flex/Grid, CSS Variables), Vanilla JavaScript (ES6+)
+* **儲存**：瀏覽器 `localStorage` (`party_splitter_db`)
+* **部署**：GitHub Pages (Static Hosting)
+
+---
+
+## 🚀 本地開發與使用方式
+
+1. 將本專案 Clone 或下載到本地。
+2. 直接用瀏覽器打開 `index.html` 即可開始使用。
+3. 若要部署更新，直接將修改後的 `index.html` 推送到 GitHub 主分支即可透過 GitHub Pages 自動更新。
+
+---
+
+## 📌 版本紀錄 (Changelog)
+
+* **v2.3.0**：新增「指定大掌櫃 / 集中收支」過數模式，並優化 WhatsApp 匯報排版。
+* **v2.2.0**：加入 Party-by-Party 的純 JSON 匯出與安全匯入功能，實現跨裝置協作。
+* **v2.0.0**：升級多 Party 歷史存檔與切換管理介面。
+* **v1.6.0**：加入 Party 總消費統計與完整明細 WhatsApp 一鍵複製。
+* **v1.5.0**：引入唯一 ID 成員追蹤機制，解決改名對帳痛點。
+* **v1.0.0**：初始單次結算版本發布。
