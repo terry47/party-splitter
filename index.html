@@ -54,7 +54,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.2.0</span>
+    <span class="version-badge">v2.3.0</span>
   </div>
 
   <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
@@ -126,7 +126,7 @@
     </div>
   </div>
 
-  <!-- 3. 結算明細、收款資料與 WhatsApp 匯報 -->
+  <!-- 3. 結算明細、過數設定與 WhatsApp 匯報 -->
   <div class="card">
     <h2>3. 結算明細與 WhatsApp 匯報</h2>
     
@@ -144,7 +144,21 @@
       </table>
     </div>
 
-    <h3 style="margin-top: 16px;">💡 最簡化過數方案</h3>
+    <!-- 過數模式切換區塊 -->
+    <div style="margin-top: 16px; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+      <label>⚙️ 選擇過數模式</label>
+      <select id="settlementMode" onchange="updateSettlementMode(this.value)">
+        <option value="minimal">⚡ 最簡過數 (自動互相抵銷)</option>
+        <option value="collector">🎯 指定大掌櫃 (全體統一轉給大掌櫃)</option>
+      </select>
+
+      <div id="collectorSelectBox" style="display:none; margin-top: 8px;">
+        <label>👤 指定大掌櫃 (接收款項者)</label>
+        <select id="collectorMember" onchange="updateCollectorId(this.value)"></select>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 16px;">💡 過數方案</h3>
     <div class="settlement-box" id="settlementPlan">點擊計算後顯示過數方案...</div>
 
     <div style="margin-top: 16px;">
@@ -166,7 +180,9 @@
       partyName: '',
       members: [],
       items: [],
-      paymentInfo: ''
+      paymentInfo: '',
+      settlementMode: 'minimal', // 'minimal' | 'collector'
+      collectorId: ''
     };
 
     window.onload = () => {
@@ -209,7 +225,9 @@
         partyName: '未命名聚會 (' + new Date().toLocaleDateString() + ')',
         members: [],
         items: [],
-        paymentInfo: ''
+        paymentInfo: '',
+        settlementMode: 'minimal',
+        collectorId: ''
       };
       db.parties.unshift(newParty);
       currentParty = newParty;
@@ -251,6 +269,19 @@
       saveDB();
     }
 
+    function updateSettlementMode(mode) {
+      currentParty.settlementMode = mode;
+      document.getElementById('collectorSelectBox').style.display = mode === 'collector' ? 'block' : 'none';
+      saveDB();
+      calculate();
+    }
+
+    function updateCollectorId(id) {
+      currentParty.collectorId = id;
+      saveDB();
+      calculate();
+    }
+
     function updateSelectorDropdown() {
       const selector = document.getElementById('partySelector');
       selector.innerHTML = db.parties.map(p => `
@@ -260,7 +291,6 @@
       `).join('');
     }
 
-    // 📤 📥 JSON 匯出與安全匯入控制
     function toggleJsonPanel(type) {
       const exportPanel = document.getElementById('exportPanel');
       const importPanel = document.getElementById('importPanel');
@@ -300,14 +330,11 @@
 
       try {
         const imported = JSON.parse(raw);
-        
-        // 嚴格結構校驗 (Sanity Check)
         if (!imported.id || !Array.isArray(imported.members) || !Array.isArray(imported.items)) {
           alert('JSON 格式不正確：缺少必要的聚會欄位 (id, members, items)！');
           return;
         }
 
-        // 檢查是否已存在相同 ID
         const existingIndex = db.parties.findIndex(p => p.id === imported.id);
         if (existingIndex !== -1) {
           if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，是否覆蓋更新？`)) {
@@ -323,7 +350,7 @@
         renderAll();
         document.getElementById('importPanel').style.display = 'none';
         document.getElementById('importTextarea').value = '';
-        alert('🎉 成功成功匯入聚會！');
+        alert('🎉 成功匯入聚會！');
 
       } catch(e) {
         alert('解析 JSON 失敗，請確認貼上的文字格式是否完整正確！');
@@ -336,7 +363,7 @@
       const newNames = input.split(/[,，]/).map(n => n.trim()).filter(n => n !== '');
       
       if (newNames.length === 0) {
-        alert('成員名單不能為空！');
+        alert('成員名單數量不能為空！');
         return;
       }
 
@@ -376,6 +403,12 @@
       });
 
       currentParty.members = newMembers;
+      
+      // 如果原本的大掌櫃被刪除了，自動將大掌櫃切換為第一個成員
+      if (!validIds.includes(currentParty.collectorId) && newMembers.length > 0) {
+        currentParty.collectorId = newMembers[0].id;
+      }
+
       saveDB();
       renderAll();
     }
@@ -394,6 +427,17 @@
       const checkboxes = document.getElementById('splitCheckboxes');
       checkboxes.innerHTML = currentParty.members.map(m => `
         <label><input type="checkbox" value="${m.id}" checked> ${m.name}</label>
+      `).join('');
+
+      // 更新過數模式UI
+      const mode = currentParty.settlementMode || 'minimal';
+      document.getElementById('settlementMode').value = mode;
+      document.getElementById('collectorSelectBox').style.display = mode === 'collector' ? 'block' : 'none';
+
+      // 填入大掌櫃下拉選單
+      const collectorSelect = document.getElementById('collectorMember');
+      collectorSelect.innerHTML = currentParty.members.map(m => `
+        <option value="${m.id}" ${m.id === currentParty.collectorId ? 'selected' : ''}>${m.name}</option>
       `).join('');
 
       renderItems();
@@ -510,7 +554,7 @@
 
     function calculate() {
       let totals = {};
-      currentParty.members.forEach(m => totals[m.id] = { name: m.name, shouldPay: 0, paid: 0, net: 0 });
+      currentParty.members.forEach(m => totals[m.id] = { id: m.id, name: m.name, shouldPay: 0, paid: 0, net: 0 });
 
       let totalCost = 0;
       currentParty.items.forEach(item => {
@@ -531,10 +575,22 @@
       currentTotals = totals;
       document.getElementById('partyTotalDisplay').innerText = `$${Math.round(totalCost)}`;
 
-      let summaryHtml = '';
-      let debtors = [];
-      let creditors = [];
+      // 如果未設定過大掌櫃（或原本的大掌櫃已失效），預設推舉「已墊付最高金額的人」為大掌櫃
+      if (!currentParty.collectorId || !currentParty.members.some(m => m.id === currentParty.collectorId)) {
+        let maxPaid = -1;
+        let topPayerId = currentParty.members.length > 0 ? currentParty.members[0].id : '';
+        Object.values(totals).forEach(t => {
+          if (t.paid > maxPaid) {
+            maxPaid = t.paid;
+            topPayerId = t.id;
+          }
+        });
+        currentParty.collectorId = topPayerId;
+        const colSelect = document.getElementById('collectorMember');
+        if (colSelect) colSelect.value = topPayerId;
+      }
 
+      let summaryHtml = '';
       if (currentParty.members.length === 0) {
         summaryHtml = '<tr><td colspan="4" style="text-align:center; color:var(--text-sub);">請先設定成員名單</td></tr>';
       } else {
@@ -552,25 +608,57 @@
               </td>
             </tr>
           `;
-
-          if (net < -0.5) debtors.push({ name: m.name, amount: -net });
-          if (net > 0.5) creditors.push({ name: m.name, amount: net });
         });
       }
 
       document.getElementById('summaryTable').innerHTML = summaryHtml;
 
+      // 計算過數方案
       let transactions = [];
-      let i = 0, j = 0;
-      while (i < debtors.length && j < creditors.length) {
-        let pay = Math.min(debtors[i].amount, creditors[j].amount);
-        transactions.push(`${debtors[i].name} ➡️ ${creditors[j].name}: $${Math.round(pay)}`);
-        
-        debtors[i].amount -= pay;
-        creditors[j].amount -= pay;
+      const mode = currentParty.settlementMode || 'minimal';
 
-        if (debtors[i].amount < 0.5) i++;
-        if (creditors[j].amount < 0.5) j++;
+      if (mode === 'minimal') {
+        // ⚡ 最簡過數模式
+        let debtors = [];
+        let creditors = [];
+        currentParty.members.forEach(m => {
+          const net = totals[m.id].net;
+          if (net < -0.5) debtors.push({ name: m.name, amount: -net });
+          if (net > 0.5) creditors.push({ name: m.name, amount: net });
+        });
+
+        let i = 0, j = 0;
+        while (i < debtors.length && j < creditors.length) {
+          let pay = Math.min(debtors[i].amount, creditors[j].amount);
+          transactions.push(`${debtors[i].name} ➡️ ${creditors[j].name}: $${Math.round(pay)}`);
+          debtors[i].amount -= pay;
+          creditors[j].amount -= pay;
+          if (debtors[i].amount < 0.5) i++;
+          if (creditors[j].amount < 0.5) j++;
+        }
+      } else {
+        // 🎯 指定大掌櫃模式
+        const collectorName = getMemberName(currentParty.collectorId);
+        
+        // 1. 所有人（除了大掌櫃自己）如果淨額為負，過數給大掌櫃
+        currentParty.members.forEach(m => {
+          if (m.id !== currentParty.collectorId) {
+            const net = totals[m.id].net;
+            if (net < -0.5) {
+              transactions.push(`${m.name} ➡️ ${collectorName} (大掌櫃): $${Math.round(-net)}`);
+            }
+          }
+        });
+
+        // 2. 大掌櫃過數給其他有超額墊付的成員
+        currentParty.members.forEach(m => {
+          if (m.id !== currentParty.collectorId) {
+            const net = totals[m.id].net;
+            if (net > 0.5) {
+              transactions.push(`${collectorName} (大掌櫃) ➡️ ${m.name}: $${Math.round(net)}`);
+            }
+          }
+        });
       }
 
       const planText = transactions.length > 0 ? transactions.join('\n') : (currentParty.members.length > 0 ? '🎉 全部結清，無需過數！' : '請先輸入成員');
@@ -582,6 +670,8 @@
       const partyName = currentParty.partyName || 'Party';
       const plan = document.getElementById('settlementPlan').innerText;
       const payment = currentParty.paymentInfo;
+      const mode = currentParty.settlementMode || 'minimal';
+      const collectorName = getMemberName(currentParty.collectorId);
 
       let totalCost = currentParty.items.reduce((sum, item) => sum + item.cost, 0);
 
@@ -597,7 +687,11 @@
       });
 
       text += `----------------------\n`;
-      text += `👉 *建議過數方案：*\n${plan}\n`;
+      if (mode === 'collector') {
+        text += `👉 *建議過數方案 (大掌櫃模式: ${collectorName})：*\n${plan}\n`;
+      } else {
+        text += `👉 *建議過數方案 (最簡過數)：*\n${plan}\n`;
+      }
       
       if (payment) {
         text += `----------------------\n`;
