@@ -19,7 +19,9 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; max-width: 600px; margin: 0 auto; line-height: 1.5; }
-    h1 { text-align: center; font-size: 1.5rem; margin-bottom: 16px; color: var(--primary); }
+    .header-container { text-align: center; margin-bottom: 16px; }
+    h1 { font-size: 1.5rem; color: var(--primary); display: inline-block; }
+    .version-badge { display: inline-block; background: #334155; color: var(--text-sub); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; vertical-align: middle; margin-left: 6px; }
     .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border-color); }
     h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
     label { display: block; font-size: 0.85rem; color: var(--text-sub); margin-bottom: 4px; }
@@ -44,7 +46,10 @@
 </head>
 <body>
 
-  <h1>🎉 Party 夾錢計算器</h1>
+  <div class="header-container">
+    <h1>🎉 Party 夾錢計算器</h1>
+    <span class="version-badge">v1.1.0</span>
+  </div>
 
   <!-- 1. Party 設定 -->
   <div class="card">
@@ -173,10 +178,8 @@
       }
 
       if (editIndex === -1) {
-        // 新增
         state.items.push({ id: Date.now(), name, cost, payer, splitWith: checkedMembers });
       } else {
-        // 更新現有項目
         state.items[editIndex] = { ...state.items[editIndex], name, cost, payer, splitWith: checkedMembers };
         resetForm();
       }
@@ -198,7 +201,6 @@
       document.getElementById('itemPayer').value = item.payer;
       document.getElementById('editIndex').value = index;
 
-      // 勾選對應分攤成員
       const checkboxes = document.querySelectorAll('#splitCheckboxes input');
       checkboxes.forEach(cb => {
         cb.checked = item.splitWith.includes(cb.value);
@@ -219,7 +221,6 @@
       document.getElementById('submitBtn').innerText = '加入項目';
       document.getElementById('cancelBtn').style.display = 'none';
 
-      // 恢復全選
       const checkboxes = document.querySelectorAll('#splitCheckboxes input');
       checkboxes.forEach(cb => cb.checked = true);
     }
