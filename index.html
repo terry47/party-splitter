@@ -48,7 +48,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v1.1.0</span>
+    <span class="version-badge">v1.2.0</span>
   </div>
 
   <!-- 1. Party 設定 -->
@@ -145,7 +145,25 @@
 
     function updateMembers() {
       const input = document.getElementById('memberInput').value;
-      state.members = input.split(/[,，]/).map(m => m.trim()).filter(m => m !== '');
+      const newMembers = input.split(/[,，]/).map(m => m.trim()).filter(m => m !== '');
+      
+      if (newMembers.length === 0) {
+        alert('成員名單不能為空！');
+        return;
+      }
+
+      // 檢查是否有成員被刪除，提醒使用者可能會影響現有項目的分攤
+      state.members = newMembers;
+      
+      // 自動清理項目中已經不存在的成員，避免報錯
+      state.items = state.items.map(item => {
+        return {
+          ...item,
+          payer: state.members.includes(item.payer) ? item.payer : state.members[0],
+          splitWith: item.splitWith.filter(m => state.members.includes(m))
+        };
+      });
+
       renderAll();
       saveData();
     }
@@ -259,12 +277,12 @@
       state.members.forEach(m => totals[m] = { shouldPay: 0, paid: 0, net: 0 });
 
       state.items.forEach(item => {
-        if (totals[item.payer]) {
+        if (totals[item.payer] !== undefined) {
           totals[item.payer].paid += item.cost;
         }
         const perPerson = item.cost / item.splitWith.length;
         item.splitWith.forEach(m => {
-          if (totals[m]) {
+          if (totals[m] !== undefined) {
             totals[m].shouldPay += perPerson;
           }
         });
