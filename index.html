@@ -64,7 +64,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.7.0</span>
+    <span class="version-badge">v2.8.0</span>
   </div>
 
   <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
@@ -78,12 +78,10 @@
       <button onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 建立新聚會</button>
       <button onclick="deleteCurrentParty()" class="btn-danger" style="width: 100%; padding: 10px;">🗑️ 刪除目前聚會</button>
     </div>
-    <div class="flex-row" style="margin-bottom: 8px;">
-      <button onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會</button>
-      <button onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="margin:0; background: #0369a1;">📦 匯出全部 (All)</button>
-    </div>
     <div class="flex-row">
-      <button onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0; width:100%;">📥 智慧匯入 JSON</button>
+      <button onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會</button>
+      <button onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="margin:0; background: #0369a1;">📦 匯出全部</button>
+      <button onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0; background: #15803d;">📥 匯入 JSON</button>
     </div>
 
     <!-- 匯出單一面板 -->
@@ -95,23 +93,16 @@
 
     <!-- 匯出全部面板 -->
     <div id="exportAllPanel" class="json-panel">
-      <label>全部歷史聚會資料庫的 JSON 字串 (完整備份)：</label>
+      <label>全部歷史聚會資料庫 JSON (完整備份)：</label>
       <textarea id="exportAllTextarea" readonly></textarea>
       <button onclick="copyJsonText('exportAllTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製全部資料庫 JSON</button>
     </div>
 
-    <!-- 匯入面板 -->
+    <!-- 匯入面板 (已全面簡化，移除選單阻力) -->
     <div id="importPanel" class="json-panel">
-      <label>請貼上單一聚會或全部備份的 JSON 字串：</label>
+      <label>請貼上朋友傳來的 JSON 字串：</label>
       <textarea id="importTextarea" placeholder="在此貼上 JSON..."></textarea>
-      
-      <label style="margin-top: 8px;">單一聚會匯入策略：</label>
-      <select id="importStrategy">
-        <option value="append">➕ 追加載入 (作為獨立新聚會加入清單)</option>
-        <option value="overwrite">🔄 覆蓋更新 (若 ID 相同則取代現有記錄)</option>
-      </select>
-
-      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 8px;">✨ 確認並執行智慧匯入</button>
+      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 6px;">✨ 確認匯入</button>
     </div>
   </div>
 
@@ -348,10 +339,9 @@
       });
     }
 
-    // 📥 智慧匯入：支援完整 Database 備份或單一 Party 匯入
+    // 📥 智慧極簡匯入：動態偵測衝突並詢問 Overwrite 或 Append
     function importPartyJson() {
       const raw = document.getElementById('importTextarea').value.trim();
-      const strategy = document.getElementById('importStrategy').value;
 
       if (!raw) {
         alert('請先貼上 JSON 字串！');
@@ -361,9 +351,9 @@
       try {
         const imported = JSON.parse(raw);
 
-        // 判斷是否為「全資料庫備份」(包含 parties 陣列)
+        // 1. 全資料庫備份還原 (Export All 產生的格式)
         if (imported.parties && Array.isArray(imported.parties)) {
-          if (!confirm(`確定要還原整份資料庫嗎？這將會取代你現有的全部聚會紀錄（共 ${imported.parties.length} 個聚會）。`)) return;
+          if (!confirm(`📦 檢測到「全資料庫備份」！\n\n是否還原這 ${imported.parties.length} 個聚會？（注意：這將完全覆蓋你目前的本地紀錄）`)) return;
           
           db = imported;
           if (!db.parties.some(p => p.id === db.currentId)) {
@@ -372,33 +362,41 @@
           currentParty = db.parties.find(p => p.id === db.currentId) || db.parties[0];
           saveDB();
           renderAll();
-          alert('🎉 成功還原全部聚會資料庫！');
+          alert('🎉 成功還原整包資料庫！');
         } 
-        // 判斷是否為「單一 Party 格式」
+        // 2. 單一 Party 匯入
         else if (imported.id && Array.isArray(imported.members) && Array.isArray(imported.items)) {
           const existingIndex = db.parties.findIndex(p => p.id === imported.id);
 
-          if (existingIndex !== -1 && strategy === 'overwrite') {
-            if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，確定要完全覆蓋嗎？`)) return;
-            db.parties[existingIndex] = imported;
-            currentParty = imported;
-            alert('🎉 成功覆蓋更新聚會！');
-          } else {
-            let newPartyToImport = { ...imported };
-            if (existingIndex !== -1) {
-              newPartyToImport.id = 'party_' + Date.now();
-              newPartyToImport.partyName = (imported.partyName || '匯入聚會') + ' (副本)';
-            }
+          if (existingIndex !== -1) {
+            // 💡 當發現本地已存在同名/同 ID 聚會時，才跳出對話框詢問！
+            const isOverwrite = confirm(
+              `⚠️ 本地已存在相同的聚會「${imported.partyName || '未命名'}」！\n\n` +
+              `【按「確定」】➡️ 覆蓋 (Overwrite) 原有紀錄\n` +
+              `【按「取消」】➡️ 另存為獨立副本追加 (Append)`
+            );
 
-            db.parties.unshift(newPartyToImport);
-            currentParty = newPartyToImport;
-            alert('🎉 成功將聚會記錄追加載入至你的清單中！');
+            if (isOverwrite) {
+              db.parties[existingIndex] = imported;
+              currentParty = imported;
+              alert('🎉 已覆蓋舊有聚會紀錄！');
+            } else {
+              let newPartyCopy = { ...imported, id: 'party_' + Date.now(), partyName: (imported.partyName || '匯入聚會') + ' (副本)' };
+              db.parties.unshift(newPartyCopy);
+              currentParty = newPartyCopy;
+              alert('🎉 已作為副本追加至聚會清單！');
+            }
+          } else {
+            // 沒有衝突，直接安全追加
+            db.parties.unshift(imported);
+            currentParty = imported;
+            alert('🎉 成功載入新聚會！');
           }
 
           saveDB();
           renderAll();
         } else {
-          alert('JSON 格式不識別：請貼上正確的單一聚會或全部備份 JSON！');
+          alert('格式無法辨識：請確認貼上的是有效的聚會 JSON 文字！');
           return;
         }
 
@@ -406,7 +404,7 @@
         document.getElementById('importTextarea').value = '';
 
       } catch(e) {
-        alert('解析 JSON 失敗，請確認貼上的文字格式是否完整正確！');
+        alert('解析失敗：貼上的文字不完整或格式有誤！');
         console.error(e);
       }
     }
