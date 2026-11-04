@@ -54,7 +54,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.3.0</span>
+    <span class="version-badge">v2.5.0</span>
   </div>
 
   <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
@@ -84,7 +84,14 @@
     <div id="importPanel" class="json-panel">
       <label>請貼上朋友傳來的聚會 JSON 字串：</label>
       <textarea id="importTextarea" placeholder="在此貼上 JSON..."></textarea>
-      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 6px;">✨ 確認並載入聚會</button>
+      
+      <label style="margin-top: 8px;">匯入衝突處理策略：</label>
+      <select id="importStrategy">
+        <option value="append">➕ 追加載入 (Merge/Append)：作為全新獨立聚會加入歷史清單</option>
+        <option value="overwrite">🔄 覆蓋更新 (Overwrite)：若 ID 相同則取代現有記錄</option>
+      </select>
+
+      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 8px;">✨ 確認並執行匯入</button>
     </div>
   </div>
 
@@ -181,7 +188,7 @@
       members: [],
       items: [],
       paymentInfo: '',
-      settlementMode: 'minimal', // 'minimal' | 'collector'
+      settlementMode: 'minimal',
       collectorId: ''
     };
 
@@ -321,8 +328,11 @@
       });
     }
 
+    // 📥 支援 Append (追加獨立 Party) 與 Overwrite 的智慧匯入
     function importPartyJson() {
       const raw = document.getElementById('importTextarea').value.trim();
+      const strategy = document.getElementById('importStrategy').value; // 'append' or 'overwrite'
+
       if (!raw) {
         alert('請先貼上 JSON 字串！');
         return;
@@ -336,21 +346,31 @@
         }
 
         const existingIndex = db.parties.findIndex(p => p.id === imported.id);
-        if (existingIndex !== -1) {
-          if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，是否覆蓋更新？`)) {
-            return;
-          }
+
+        if (existingIndex !== -1 && strategy === 'overwrite') {
+          if (!confirm(`系統中已存在「${imported.partyName}」的紀錄，確定要完全覆蓋嗎？`)) return;
           db.parties[existingIndex] = imported;
+          currentParty = imported;
+          alert('🎉 成功覆蓋更新聚會！');
         } else {
-          db.parties.unshift(imported);
+          // Append / Merge 列表模式：給予新 ID 或直接作為獨立新記錄加入清單
+          let newPartyToImport = { ...imported };
+          
+          // 如果 ID 重複但選擇了 Append，為了避免衝突，賦予一個全新獨一無二的 ID
+          if (existingIndex !== -1) {
+            newPartyToImport.id = 'party_' + Date.now();
+            newPartyToImport.partyName = (imported.partyName || '匯入聚會') + ' (副本)';
+          }
+
+          db.parties.unshift(newPartyToImport);
+          currentParty = newPartyToImport;
+          alert('🎉 成功將聚會記錄追加載入至你的清單中！');
         }
 
-        currentParty = imported;
         saveDB();
         renderAll();
         document.getElementById('importPanel').style.display = 'none';
         document.getElementById('importTextarea').value = '';
-        alert('🎉 成功匯入聚會！');
 
       } catch(e) {
         alert('解析 JSON 失敗，請確認貼上的文字格式是否完整正確！');
@@ -404,7 +424,6 @@
 
       currentParty.members = newMembers;
       
-      // 如果原本的大掌櫃被刪除了，自動將大掌櫃切換為第一個成員
       if (!validIds.includes(currentParty.collectorId) && newMembers.length > 0) {
         currentParty.collectorId = newMembers[0].id;
       }
@@ -429,12 +448,10 @@
         <label><input type="checkbox" value="${m.id}" checked> ${m.name}</label>
       `).join('');
 
-      // 更新過數模式UI
       const mode = currentParty.settlementMode || 'minimal';
       document.getElementById('settlementMode').value = mode;
       document.getElementById('collectorSelectBox').style.display = mode === 'collector' ? 'block' : 'none';
 
-      // 填入大掌櫃下拉選單
       const collectorSelect = document.getElementById('collectorMember');
       collectorSelect.innerHTML = currentParty.members.map(m => `
         <option value="${m.id}" ${m.id === currentParty.collectorId ? 'selected' : ''}>${m.name}</option>
@@ -575,7 +592,6 @@
       currentTotals = totals;
       document.getElementById('partyTotalDisplay').innerText = `$${Math.round(totalCost)}`;
 
-      // 如果未設定過大掌櫃（或原本的大掌櫃已失效），預設推舉「已墊付最高金額的人」為大掌櫃
       if (!currentParty.collectorId || !currentParty.members.some(m => m.id === currentParty.collectorId)) {
         let maxPaid = -1;
         let topPayerId = currentParty.members.length > 0 ? currentParty.members[0].id : '';
@@ -613,12 +629,10 @@
 
       document.getElementById('summaryTable').innerHTML = summaryHtml;
 
-      // 計算過數方案
       let transactions = [];
       const mode = currentParty.settlementMode || 'minimal';
 
       if (mode === 'minimal') {
-        // ⚡ 最簡過數模式
         let debtors = [];
         let creditors = [];
         currentParty.members.forEach(m => {
@@ -637,10 +651,8 @@
           if (creditors[j].amount < 0.5) j++;
         }
       } else {
-        // 🎯 指定大掌櫃模式
         const collectorName = getMemberName(currentParty.collectorId);
         
-        // 1. 所有人（除了大掌櫃自己）如果淨額為負，過數給大掌櫃
         currentParty.members.forEach(m => {
           if (m.id !== currentParty.collectorId) {
             const net = totals[m.id].net;
@@ -650,7 +662,6 @@
           }
         });
 
-        // 2. 大掌櫃過數給其他有超額墊付的成員
         currentParty.members.forEach(m => {
           if (m.id !== currentParty.collectorId) {
             const net = totals[m.id].net;
