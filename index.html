@@ -19,21 +19,28 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; max-width: 600px; margin: 0 auto; line-height: 1.5; }
-    .header-container { text-align: center; margin-bottom: 16px; position: relative; }
-    h1 { font-size: 1.5rem; color: var(--primary); display: inline-block; }
-    .version-badge { display: inline-block; background: #334155; color: var(--text-sub); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; vertical-align: middle; margin-left: 6px; }
+    
+    /* 修正 1：標題與語言切換按鈕不重疊 */
+    .header-container { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 16px; 
+      gap: 8px;
+    }
+    .header-title-box { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    h1 { font-size: 1.3rem; color: var(--primary); }
+    .version-badge { background: #334155; color: var(--text-sub); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; }
     
     .lang-btn {
-      position: absolute;
-      right: 0;
-      top: 0;
       background: #334155;
       color: var(--text-main);
       border: 1px solid var(--border-color);
-      padding: 4px 10px;
+      padding: 6px 12px;
       border-radius: 6px;
       font-size: 0.8rem;
       cursor: pointer;
+      white-space: nowrap;
       width: auto;
     }
     .lang-btn:hover { background: #475569; }
@@ -45,10 +52,14 @@
     textarea { resize: vertical; height: 90px; font-family: monospace; font-size: 0.8rem; }
     button { width: 100%; padding: 10px; background: var(--primary); color: #0f172a; font-weight: bold; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
     button:hover { background: var(--primary-hover); }
-    .btn-group { display: flex; gap: 6px; }
-    button.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); width: auto; padding: 6px 12px; font-size: 0.8rem; }
+    
+    /* 修正 2：按鈕 Grid 排版，徹底解決大小不一與擠壓問題 */
+    .btn-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .btn-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+    
+    button.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
     button.btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); width: auto; padding: 6px 12px; font-size: 0.8rem; }
-    button.btn-secondary { background: #475569; color: #fff; margin-top: 6px; }
+    button.btn-secondary { background: #475569; color: #fff; font-size: 0.85rem; padding: 8px 4px; }
     button.btn-accent { background: var(--accent); color: #000; margin-top: 14px; }
     button.btn-info { background: transparent; color: var(--primary); border: 1px solid var(--primary); width: auto; padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; white-space: nowrap; }
     
@@ -57,13 +68,7 @@
     .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
     .checkbox-group label { display: flex; align-items: center; gap: 6px; color: #fff; font-size: 0.9rem; margin: 0; cursor: pointer; }
     
-    .item-row { 
-      display: flex; 
-      flex-direction: column; 
-      gap: 8px; 
-      padding: 12px 0; 
-      border-bottom: 1px dashed var(--border-color); 
-    }
+    .item-row { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px dashed var(--border-color); }
     .item-info { word-break: break-all; }
     .item-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
@@ -82,26 +87,32 @@
 <body>
 
   <div class="header-container">
-    <h1 data-i18n="appTitle">🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v3.2.0</span>
+    <div class="header-title-box">
+      <h1 data-i18n="appTitle">🎉 Party 夾錢</h1>
+      <span class="version-badge">v3.3.0</span>
+    </div>
     <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 繁中</button>
   </div>
 
   <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
   <div class="card" style="border-color: var(--primary);">
-    <h2 data-i18n="sec0Title">📁 聚會存檔與 JSON 協作</h2>
+    <h2 data-i18n="sec0Title">📁 聚會存檔與協作</h2>
     <div style="margin-bottom: 8px;">
       <label data-i18n="labelSwitchParty">切換歷史聚會</label>
       <select id="partySelector" onchange="switchParty(this.value)"></select>
     </div>
-    <div class="flex-row" style="margin-bottom: 8px;">
-      <button data-i18n="btnNewParty" onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 建立新聚會</button>
-      <button data-i18n="btnDelParty" onclick="deleteCurrentParty()" class="btn-danger" style="width: 100%; padding: 10px;">🗑️ 刪除目前聚會</button>
+    
+    <!-- 第一排按鈕：建立新聚會 / 刪除目前聚會 (1:1 均分) -->
+    <div class="btn-grid-2">
+      <button data-i18n="btnNewParty" onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 新增聚會</button>
+      <button data-i18n="btnDelParty" onclick="deleteCurrentParty()" class="btn-danger">🗑️ 刪除聚會</button>
     </div>
-    <div class="flex-row">
-      <button data-i18n="btnExportParty" onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會</button>
-      <button data-i18n="btnExportAll" onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="margin:0; background: #0369a1;">📦 匯出全部</button>
-      <button data-i18n="btnImportJson" onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0; background: #15803d;">📥 匯入 JSON</button>
+
+    <!-- 第二排按鈕：匯出、匯出全部、匯入 (3等分均分，解決大小不一) -->
+    <div class="btn-grid-3">
+      <button data-i18n="btnExportParty" onclick="toggleJsonPanel('export')" class="btn-secondary">📤 匯出</button>
+      <button data-i18n="btnExportAll" onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="background: #0369a1;">📦 全部</button>
+      <button data-i18n="btnImportJson" onclick="toggleJsonPanel('import')" class="btn-secondary" style="background: #15803d;">📥 匯入</button>
     </div>
 
     <!-- 匯出單一面板 -->
@@ -156,7 +167,7 @@
     <div class="checkbox-group" id="splitCheckboxes"></div>
     
     <button id="submitBtn" data-i18n="btnAddItem" onclick="saveItem()">加入項目</button>
-    <button id="cancelBtn" data-i18n="btnCancelEdit" onclick="resetForm()" class="btn-secondary" style="display:none;">取消編輯</button>
+    <button id="cancelBtn" data-i18n="btnCancelEdit" onclick="resetForm()" class="btn-secondary" style="display:none; width:100%; margin-top:8px;">取消編輯</button>
 
     <div style="margin-top: 16px;">
       <h3 data-i18n="itemListTitle">已記錄項目列表</h3>
@@ -169,7 +180,7 @@
     <h2 data-i18n="sec3Title">3. 結算明細與 WhatsApp 匯報</h2>
     
     <div class="total-banner">
-      <span data-i18n="totalCostText">💰 Party 總消費 (Total)：</span>
+      <span data-i18n="totalCostText">💰 總消費 (Total)：</span>
       <span id="partyTotalDisplay">$0</span>
     </div>
 
@@ -214,19 +225,16 @@
   </div>
 
   <script>
-    /* ==========================================================================
-       ⚙️ 全域語系字典與設定參數 (i18n Parameter Configuration)
-       ========================================================================== */
     const i18nConfig = {
       zh: {
-        appTitle: "🎉 Party 夾錢計算器",
-        sec0Title: "📁 聚會存檔與 JSON 協作",
+        appTitle: "🎉 Party 夾錢",
+        sec0Title: "📁 聚會存檔與協作",
         labelSwitchParty: "切換歷史聚會",
-        btnNewParty: "➕ 建立新聚會",
-        btnDelParty: "🗑️ 刪除目前聚會",
-        btnExportParty: "📤 匯出此聚會",
-        btnExportAll: "📦 匯出全部",
-        btnImportJson: "📥 匯入 JSON",
+        btnNewParty: "➕ 新增聚會",
+        btnDelParty: "🗑️ 刪除聚會",
+        btnExportParty: "📤 匯出",
+        btnExportAll: "📦 全部",
+        btnImportJson: "📥 匯入",
         labelExportSingle: "目前聚會的 JSON 字串：",
         labelExportAll: "全部歷史聚會資料庫 JSON (完整備份)：",
         btnCopyJson: "📋 複製 JSON",
@@ -255,7 +263,7 @@
         itemListTitle: "已記錄項目列表",
 
         sec3Title: "3. 結算明細與 WhatsApp 匯報",
-        totalCostText: "💰 Party 總消費 (Total)：",
+        totalCostText: "💰 總消費 (Total)：",
         thMember: "成員",
         thShouldPay: "應付",
         thPaid: "已墊付",
@@ -305,13 +313,13 @@
       },
       en: {
         appTitle: "🎉 Party Splitter",
-        sec0Title: "📁 Party Archives & JSON Sync",
+        sec0Title: "📁 Party & Sync",
         labelSwitchParty: "Switch History Party",
-        btnNewParty: "➕ New Party",
-        btnDelParty: "🗑️ Delete Party",
-        btnExportParty: "📤 Export Party",
-        btnExportAll: "📦 Export All",
-        btnImportJson: "📥 Import JSON",
+        btnNewParty: "➕ New",
+        btnDelParty: "🗑️ Delete",
+        btnExportParty: "📤 Export",
+        btnExportAll: "📦 All",
+        btnImportJson: "📥 Import",
         labelExportSingle: "Current Party JSON string:",
         labelExportAll: "All Databases JSON string (Full Backup):",
         btnCopyJson: "📋 Copy JSON",
@@ -340,7 +348,7 @@
         itemListTitle: "Recorded Items",
 
         sec3Title: "3. Settlement & WhatsApp Report",
-        totalCostText: "💰 Total Party Cost:",
+        totalCostText: "💰 Total Cost:",
         thMember: "Member",
         thShouldPay: "Should Pay",
         thPaid: "Paid",
@@ -763,7 +771,6 @@
       return m ? m.name : t.unknownMember;
     }
 
-    // 🔍 查詢單一成員的 Break Down 彈窗
     function showMemberBreakdown(memberId) {
       const t = i18nConfig[currentLang];
       const memberName = getMemberName(memberId);
