@@ -48,7 +48,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v1.2.0</span>
+    <span class="version-badge">v1.4.0</span>
   </div>
 
   <!-- 1. Party 設定 -->
@@ -152,18 +152,15 @@
         return;
       }
 
-      // 檢查是否有成員被刪除，提醒使用者可能會影響現有項目的分攤
-      state.members = newMembers;
-      
-      // 自動清理項目中已經不存在的成員，避免報錯
       state.items = state.items.map(item => {
         return {
           ...item,
-          payer: state.members.includes(item.payer) ? item.payer : state.members[0],
-          splitWith: item.splitWith.filter(m => state.members.includes(m))
+          payer: newMembers.includes(item.payer) ? item.payer : newMembers[0],
+          splitWith: item.splitWith.filter(m => newMembers.includes(m))
         };
       });
 
+      state.members = newMembers;
       renderAll();
       saveData();
     }
@@ -258,18 +255,22 @@
         list.innerHTML = '<p style="color:var(--text-sub); font-size:0.85rem;">暫無項目</p>';
         return;
       }
-      list.innerHTML = state.items.map(item => `
-        <div class="item-row">
-          <div>
-            <strong>${item.name}</strong> - $${item.cost} 
-            <br><small style="color:var(--text-sub)">${item.payer} 付款 | ${item.splitWith.length} 人分攤</small>
+      list.innerHTML = state.items.map(item => {
+        const isAll = item.splitWith.length === state.members.length;
+        const splitDesc = isAll ? '全體平分' : `${item.splitWith.length} 人 (${item.splitWith.join(', ')})`;
+        return `
+          <div class="item-row">
+            <div>
+              <strong>${item.name}</strong> - $${item.cost} 
+              <br><small style="color:var(--text-sub)">${item.payer} 付款 | 分攤: ${splitDesc}</small>
+            </div>
+            <div class="btn-group">
+              <button class="btn-warning" onclick="editItem(${item.id})">修改</button>
+              <button class="btn-danger" onclick="removeItem(${item.id})">刪除</button>
+            </div>
           </div>
-          <div class="btn-group">
-            <button class="btn-warning" onclick="editItem(${item.id})">修改</button>
-            <button class="btn-danger" onclick="removeItem(${item.id})">刪除</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function calculate() {
