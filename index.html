@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Party 夾錢計算器</title>
+  <title>Party 夾錢計算器 | Party Splitter</title>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -19,9 +19,25 @@
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; max-width: 600px; margin: 0 auto; line-height: 1.5; }
-    .header-container { text-align: center; margin-bottom: 16px; }
+    .header-container { text-align: center; margin-bottom: 16px; position: relative; }
     h1 { font-size: 1.5rem; color: var(--primary); display: inline-block; }
     .version-badge { display: inline-block; background: #334155; color: var(--text-sub); font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; vertical-align: middle; margin-left: 6px; }
+    
+    .lang-btn {
+      position: absolute;
+      right: 0;
+      top: 0;
+      background: #334155;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      width: auto;
+    }
+    .lang-btn:hover { background: #475569; }
+
     .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid var(--border-color); }
     h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 6px; }
     label { display: block; font-size: 0.85rem; color: var(--text-sub); margin-bottom: 4px; }
@@ -63,100 +79,106 @@
 <body>
 
   <div class="header-container">
-    <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v2.8.0</span>
+    <h1 data-i18n="appTitle">🎉 Party 夾錢計算器</h1>
+    <span class="version-badge">v3.0.0</span>
+    <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 繁中</button>
   </div>
 
   <!-- 0. 歷史聚會存檔與 JSON 同步管理 -->
   <div class="card" style="border-color: var(--primary);">
-    <h2>📁 聚會存檔與 JSON 協作</h2>
+    <h2 data-i18n="sec0Title">📁 聚會存檔與 JSON 協作</h2>
     <div style="margin-bottom: 8px;">
-      <label>切換歷史聚會</label>
+      <label data-i18n="labelSwitchParty">切換歷史聚會</label>
       <select id="partySelector" onchange="switchParty(this.value)"></select>
     </div>
     <div class="flex-row" style="margin-bottom: 8px;">
-      <button onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 建立新聚會</button>
-      <button onclick="deleteCurrentParty()" class="btn-danger" style="width: 100%; padding: 10px;">🗑️ 刪除目前聚會</button>
+      <button data-i18n="btnNewParty" onclick="createNewParty()" style="background: var(--accent); color: #000;">➕ 建立新聚會</button>
+      <button data-i18n="btnDelParty" onclick="deleteCurrentParty()" class="btn-danger" style="width: 100%; padding: 10px;">🗑️ 刪除目前聚會</button>
     </div>
     <div class="flex-row">
-      <button onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會</button>
-      <button onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="margin:0; background: #0369a1;">📦 匯出全部</button>
-      <button onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0; background: #15803d;">📥 匯入 JSON</button>
+      <button data-i18n="btnExportParty" onclick="toggleJsonPanel('export')" class="btn-secondary" style="margin:0;">📤 匯出此聚會</button>
+      <button data-i18n="btnExportAll" onclick="toggleJsonPanel('exportAll')" class="btn-secondary" style="margin:0; background: #0369a1;">📦 匯出全部</button>
+      <button data-i18n="btnImportJson" onclick="toggleJsonPanel('import')" class="btn-secondary" style="margin:0; background: #15803d;">📥 匯入 JSON</button>
     </div>
 
     <!-- 匯出單一面板 -->
     <div id="exportPanel" class="json-panel">
-      <label>目前聚會的 JSON 字串：</label>
+      <label data-i18n="labelExportSingle">目前聚會的 JSON 字串：</label>
       <textarea id="exportTextarea" readonly></textarea>
-      <button onclick="copyJsonText('exportTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製單一聚會 JSON</button>
+      <button data-i18n="btnCopyJson" onclick="copyJsonText('exportTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製單一聚會 JSON</button>
     </div>
 
     <!-- 匯出全部面板 -->
     <div id="exportAllPanel" class="json-panel">
-      <label>全部歷史聚會資料庫 JSON (完整備份)：</label>
+      <label data-i18n="labelExportAll">全部歷史聚會資料庫 JSON (完整備份)：</label>
       <textarea id="exportAllTextarea" readonly></textarea>
-      <button onclick="copyJsonText('exportAllTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製全部資料庫 JSON</button>
+      <button data-i18n="btnCopyJson" onclick="copyJsonText('exportAllTextarea')" style="background: var(--accent); color: #000; padding: 6px;">📋 複製全部資料庫 JSON</button>
     </div>
 
-    <!-- 匯入面板 (已全面簡化，移除選單阻力) -->
+    <!-- 匯入面板 -->
     <div id="importPanel" class="json-panel">
-      <label>請貼上朋友傳來的 JSON 字串：</label>
-      <textarea id="importTextarea" placeholder="在此貼上 JSON..."></textarea>
-      <button onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 6px;">✨ 確認匯入</button>
+      <label data-i18n="labelImport">請貼上朋友傳來的 JSON 字串：</label>
+      <textarea id="importTextarea" data-i18n-ph="importPlaceholder" placeholder="在此貼上 JSON..."></textarea>
+      <button data-i18n="btnConfirmImport" onclick="importPartyJson()" style="background: var(--primary); color: #0f172a; padding: 8px; margin-top: 6px;">✨ 確認匯入</button>
     </div>
   </div>
 
   <!-- 1. Party 設定 -->
   <div class="card">
-    <h2>1. 聚會與成員設定</h2>
-    <label>Party 名稱</label>
-    <input type="text" id="partyName" placeholder="例如：10/18 生日派對" oninput="updatePartyName()">
+    <h2 data-i18n="sec1Title">1. 聚會與成員設定</h2>
+    <label data-i18n="labelPartyName">Party 名稱</label>
+    <input type="text" id="partyName" data-i18n-ph="partyNamePlaceholder" placeholder="例如：10/18 生日派對" oninput="updatePartyName()">
     
-    <label>成員名單（以逗號隔開）</label>
-    <input type="text" id="memberInput" placeholder="例如：Terry, Eddy, Anna, Sammy">
-    <button onclick="updateMembers()">更新成員名單</button>
+    <label data-i18n="labelMembers">成員名單（以逗號隔開）</label>
+    <input type="text" id="memberInput" data-i18n-ph="membersPlaceholder" placeholder="例如：Terry, Eddy, Anna, Sammy">
+    <button data-i18n="btnUpdateMembers" onclick="updateMembers()">更新成員名單</button>
     <div class="member-tags" id="memberTags"></div>
   </div>
 
   <!-- 2. 消費項目 -->
   <div class="card">
-    <h2 id="formTitle">2. 新增消費項目</h2>
+    <h2 id="formTitle" data-i18n="sec2TitleAdd">2. 新增消費項目</h2>
     <input type="hidden" id="editIndex" value="-1">
     
-    <label>項目名稱</label>
-    <input type="text" id="itemName" placeholder="例如：PIZZA / 租場費">
+    <label data-i18n="labelItemName">項目名稱</label>
+    <input type="text" id="itemName" data-i18n-ph="itemNamePlaceholder" placeholder="例如：PIZZA / 租場費">
     
-    <label>總金額 (HKD)</label>
+    <label data-i18n="labelItemCost">總金額 (HKD)</label>
     <input type="number" id="itemCost" placeholder="0">
     
-    <label>先墊付款項人 (Paid By)</label>
+    <label data-i18n="labelItemPayer">先墊付款項人 (Paid By)</label>
     <select id="itemPayer"></select>
     
-    <label>分攤成員（預設全員）</label>
+    <label data-i18n="labelItemSplit">分攤成員（預設全員）</label>
     <div class="checkbox-group" id="splitCheckboxes"></div>
     
-    <button id="submitBtn" onclick="saveItem()">加入項目</button>
-    <button id="cancelBtn" onclick="resetForm()" class="btn-secondary" style="display:none;">取消編輯</button>
+    <button id="submitBtn" data-i18n="btnAddItem" onclick="saveItem()">加入項目</button>
+    <button id="cancelBtn" data-i18n="btnCancelEdit" onclick="resetForm()" class="btn-secondary" style="display:none;">取消編輯</button>
 
     <div style="margin-top: 16px;">
-      <h3>已記錄項目列表</h3>
+      <h3 data-i18n="itemListTitle">已記錄項目列表</h3>
       <div id="itemList"></div>
     </div>
   </div>
 
   <!-- 3. 結算明細、過數設定與 WhatsApp 匯報 -->
   <div class="card">
-    <h2>3. 結算明細與 WhatsApp 匯報</h2>
+    <h2 data-i18n="sec3Title">3. 結算明細與 WhatsApp 匯報</h2>
     
     <div class="total-banner">
-      <span>💰 Party 總消費 (Total)：</span>
+      <span data-i18n="totalCostText">💰 Party 總消費 (Total)：</span>
       <span id="partyTotalDisplay">$0</span>
     </div>
 
     <div class="table-container">
       <table>
         <thead>
-          <tr><th>成員</th><th>應付</th><th>已墊付</th><th>淨額</th></tr>
+          <tr>
+            <th data-i18n="thMember">成員</th>
+            <th data-i18n="thShouldPay">應付</th>
+            <th data-i18n="thPaid">已墊付</th>
+            <th data-i18n="thNet">淨額</th>
+          </tr>
         </thead>
         <tbody id="summaryTable"></tbody>
       </table>
@@ -164,47 +186,232 @@
 
     <!-- 過數模式切換區塊 -->
     <div style="margin-top: 16px; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-      <label>⚙️ 選擇過數模式</label>
+      <label data-i18n="labelSettlementMode">⚙️ 選擇過數模式</label>
       <select id="settlementMode" onchange="updateSettlementMode(this.value)">
-        <option value="minimal">⚡ 最簡過數 (自動互相抵銷)</option>
-        <option value="collector">🎯 指定大掌櫃 (全體統一轉給大掌櫃)</option>
+        <option value="minimal" data-i18n="optModeMinimal">⚡ 最簡過數 (自動互相抵銷)</option>
+        <option value="collector" data-i18n="optModeCollector">🎯 指定大掌櫃 (全體統一轉給大掌櫃)</option>
       </select>
 
       <div id="collectorSelectBox" style="display:none; margin-top: 8px;">
-        <label>👤 指定大掌櫃 (接收款項者)</label>
+        <label data-i18n="labelCollector">👤 指定大掌櫃 (接收款項者)</label>
         <select id="collectorMember" onchange="updateCollectorId(this.value)"></select>
       </div>
     </div>
 
-    <h3 style="margin-top: 16px;">💡 過數方案</h3>
+    <h3 data-i18n="planTitle" style="margin-top: 16px;">💡 過數方案</h3>
     <div class="settlement-box" id="settlementPlan">點擊計算後顯示過數方案...</div>
 
     <div style="margin-top: 16px;">
-      <label>💳 收款資料 (選填，將會包含在 WhatsApp 訊息中)</label>
-      <input type="text" id="paymentInfo" placeholder="例如：Eddy FPS 91234567 / PayMe link" oninput="updatePaymentInfo()">
+      <label data-i18n="labelPaymentInfo">💳 收款資料 (選填，將會包含在 WhatsApp 訊息中)</label>
+      <input type="text" id="paymentInfo" data-i18n-ph="paymentPlaceholder" placeholder="例如：Eddy FPS 91234567 / PayMe link" oninput="updatePaymentInfo()">
     </div>
     
-    <button class="btn-accent" onclick="copyWhatsAppText()">📋 複製完整結算明細表 (WhatsApp)</button>
+    <button data-i18n="btnCopyWhatsApp" class="btn-accent" onclick="copyWhatsAppText()">📋 複製完整結算明細表 (WhatsApp)</button>
   </div>
 
   <script>
-    let db = {
-      currentId: null,
-      parties: []
+    /* ==========================================================================
+       ⚙️ 全域語系字典與設定參數 (i18n Parameter Configuration)
+       你可以隨時在這裡修改或擴充各語言的文字！
+       ========================================================================== */
+    const i18nConfig = {
+      zh: {
+        // 全局 UI 標籤
+        appTitle: "🎉 Party 夾錢計算器",
+        sec0Title: "📁 聚會存檔與 JSON 協作",
+        labelSwitchParty: "切換歷史聚會",
+        btnNewParty: "➕ 建立新聚會",
+        btnDelParty: "🗑️ 刪除目前聚會",
+        btnExportParty: "📤 匯出此聚會",
+        btnExportAll: "📦 匯出全部",
+        btnImportJson: "📥 匯入 JSON",
+        labelExportSingle: "目前聚會的 JSON 字串：",
+        labelExportAll: "全部歷史聚會資料庫 JSON (完整備份)：",
+        btnCopyJson: "📋 複製 JSON",
+        labelImport: "請貼上朋友傳來的 JSON 字串：",
+        importPlaceholder: "在此貼上 JSON...",
+        btnConfirmImport: "✨ 確認匯入",
+
+        sec1Title: "1. 聚會與成員設定",
+        labelPartyName: "Party 名稱",
+        partyNamePlaceholder: "例如：10/18 生日派對",
+        defaultPartyName: "未命名聚會",
+        labelMembers: "成員名單（以逗號隔開）",
+        membersPlaceholder: "例如：Terry, Eddy, Anna, Sammy",
+        btnUpdateMembers: "更新成員名單",
+
+        sec2TitleAdd: "2. 新增消費項目",
+        sec2TitleEdit: "2. 修改消費項目",
+        labelItemName: "項目名稱",
+        itemNamePlaceholder: "例如：PIZZA / 租場費",
+        labelItemCost: "總金額 (HKD)",
+        labelItemPayer: "先墊付款項人 (Paid By)",
+        labelItemSplit: "分攤成員（預設全員）",
+        btnAddItem: "加入項目",
+        btnSaveEdit: "儲存修改",
+        btnCancelEdit: "取消編輯",
+        itemListTitle: "已記錄項目列表",
+
+        sec3Title: "3. 結算明細與 WhatsApp 匯報",
+        totalCostText: "💰 Party 總消費 (Total)：",
+        thMember: "成員",
+        thShouldPay: "應付",
+        thPaid: "已墊付",
+        thNet: "淨額",
+        labelSettlementMode: "⚙️ 選擇過數模式",
+        optModeMinimal: "⚡ 最簡過數 (自動互相抵銷)",
+        optModeCollector: "🎯 指定大掌櫃 (全體統一轉給大掌櫃)",
+        labelCollector: "👤 指定大掌櫃 (接收款項者)",
+        planTitle: "💡 過數方案",
+        labelPaymentInfo: "💳 收款資料 (選填，將會包含在 WhatsApp 訊息中)",
+        paymentPlaceholder: "例如：Eddy FPS 91234567 / PayMe link",
+        btnCopyWhatsApp: "📋 複製完整結算明細表 (WhatsApp)",
+
+        // 動態渲染與彈窗訊息 (Dynamic Alerts & Text)
+        collectorSuffix: " (大掌櫃)",
+        allSettled: "🎉 全部結清，無需過數！",
+        needMembers: "請先輸入成員",
+        editBtnText: "修改",
+        deleteBtnText: "刪除",
+        allSplitText: "全體平分",
+        peopleSuffix: "人",
+        noItemsText: "暫無項目",
+        unknownMember: "未知",
+
+        alertNewPartySuccess: "已成功建立新聚會！",
+        alertAtLeastOneParty: "最少需要保留一個聚會紀錄！",
+        confirmDeleteParty: "確定要刪除此聚會嗎？",
+        alertCopySuccess: "已成功複製 JSON 至剪貼簿！",
+        alertEmptyImport: "請先貼上 JSON 字串！",
+        confirmDbRestore: "📦 檢測到「全資料庫備份」！\n\n是否還原所有聚會？（注意：將覆蓋本地紀錄）",
+        alertDbRestoreSuccess: "🎉 成功還原整包資料庫！",
+        confirmPartyOverwrite: "⚠️ 本地已存在相同的聚會！\n\n【按「確定」】➡️ 覆蓋 (Overwrite)\n【按「取消」】➡️ 存為副本 (Append)",
+        alertOverwriteSuccess: "🎉 已覆蓋舊有聚會紀錄！",
+        alertAppendSuccess: "🎉 已作為副本追加至聚會清單！",
+        alertImportNewSuccess: "🎉 成功載入新聚會！",
+        alertFormatError: "解析失敗：貼上的文字不完整或格式有誤！",
+        alertMembersEmpty: "成員名單數量不能為空！",
+        alertFillItemError: "請填寫完整項目名稱、有效金額及至少一位分攤成員！",
+        alertDeleteItemConfirm: "確定要刪除此項目嗎？",
+        alertWhatsAppCopySuccess: "已成功複製完整結算明細至剪貼簿！可以直接貼到 WhatsApp"
+      },
+      en: {
+        appTitle: "🎉 Party Splitter",
+        sec0Title: "📁 Party Archives & JSON Sync",
+        labelSwitchParty: "Switch History Party",
+        btnNewParty: "➕ New Party",
+        btnDelParty: "🗑️ Delete Party",
+        btnExportParty: "📤 Export Party",
+        btnExportAll: "📦 Export All",
+        btnImportJson: "📥 Import JSON",
+        labelExportSingle: "Current Party JSON string:",
+        labelExportAll: "All Databases JSON string (Full Backup):",
+        btnCopyJson: "📋 Copy JSON",
+        labelImport: "Paste JSON string from friend:",
+        importPlaceholder: "Paste JSON here...",
+        btnConfirmImport: "✨ Confirm Import",
+
+        sec1Title: "1. Party & Members Setup",
+        labelPartyName: "Party Name",
+        partyNamePlaceholder: "e.g., 10/18 Birthday Party",
+        defaultPartyName: "Untitled Party",
+        labelMembers: "Members (comma separated)",
+        membersPlaceholder: "e.g., Terry, Eddy, Anna, Sammy",
+        btnUpdateMembers: "Update Members",
+
+        sec2TitleAdd: "2. Add Expense Item",
+        sec2TitleEdit: "2. Edit Expense Item",
+        labelItemName: "Item Name",
+        itemNamePlaceholder: "e.g., PIZZA / Venue Fee",
+        labelItemCost: "Total Cost (HKD)",
+        labelItemPayer: "Paid By",
+        labelItemSplit: "Split Among (Default: All)",
+        btnAddItem: "Add Item",
+        btnSaveEdit: "Save Changes",
+        btnCancelEdit: "Cancel Edit",
+        itemListTitle: "Recorded Items",
+
+        sec3Title: "3. Settlement & WhatsApp Report",
+        totalCostText: "💰 Total Party Cost:",
+        thMember: "Member",
+        thShouldPay: "Should Pay",
+        thPaid: "Paid",
+        thNet: "Net",
+        labelSettlementMode: "⚙️ Settlement Mode",
+        optModeMinimal: "⚡ Minimal Transfers (Auto-offset)",
+        optModeCollector: "🎯 Central Collector (All to one)",
+        labelCollector: "👤 Central Collector",
+        planTitle: "💡 Transfer Plan",
+        labelPaymentInfo: "💳 Payment Info (Optional, included in WhatsApp)",
+        paymentPlaceholder: "e.g., Eddy FPS 91234567 / PayMe link",
+        btnCopyWhatsApp: "📋 Copy WhatsApp Summary Report",
+
+        collectorSuffix: " (Collector)",
+        allSettled: "🎉 All settled, no transfers needed!",
+        needMembers: "Please enter members first",
+        editBtnText: "Edit",
+        deleteBtnText: "Delete",
+        allSplitText: "Split Equally",
+        peopleSuffix: "people",
+        noItemsText: "No items yet",
+        unknownMember: "Unknown",
+
+        alertNewPartySuccess: "New party created successfully!",
+        alertAtLeastOneParty: "At least one party record must be kept!",
+        confirmDeleteParty: "Are you sure to delete this party?",
+        alertCopySuccess: "JSON copied to clipboard successfully!",
+        alertEmptyImport: "Please paste JSON string first!",
+        confirmDbRestore: "📦 Full database backup detected!\n\nRestore all parties? (Note: Local data will be overwritten)",
+        alertDbRestoreSuccess: "🎉 Database restored successfully!",
+        confirmPartyOverwrite: "⚠️ Party already exists locally!\n\n[OK] ➡️ Overwrite\n[Cancel] ➡️ Save as copy (Append)",
+        alertOverwriteSuccess: "🎉 Party overwritten!",
+        alertAppendSuccess: "🎉 Added as a new copy!",
+        alertImportNewSuccess: "🎉 New party loaded successfully!",
+        alertFormatError: "Parse failed: invalid JSON format!",
+        alertMembersEmpty: "Member list cannot be empty!",
+        alertFillItemError: "Please fill in item name, valid cost, and at least one member!",
+        alertDeleteItemConfirm: "Are you sure to delete this item?",
+        alertWhatsAppCopySuccess: "Summary report copied to clipboard!"
+      }
     };
 
-    let currentParty = {
-      id: '',
-      partyName: '',
-      members: [],
-      items: [],
-      paymentInfo: '',
-      settlementMode: 'minimal',
-      collectorId: ''
-    };
+    let currentLang = localStorage.getItem('party_splitter_lang') || 'zh';
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('party_splitter_lang', currentLang);
+      applyLanguage();
+      renderAll();
+    }
+
+    // 自動語系綁定（利用 HTML data-i18n 與 data-i18n-ph 屬性）
+    function applyLanguage() {
+      const t = i18nConfig[currentLang];
+      
+      // 替換普通文字內容
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key]) el.innerText = t[key];
+      });
+
+      // 替換 Placeholder 內容
+      document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        const key = el.getAttribute('data-i18n-ph');
+        if (t[key]) el.placeholder = t[key];
+      });
+
+      // 動態更新編輯狀態下的 Form 標題與按鈕
+      const editIndex = parseInt(document.getElementById('editIndex').value);
+      document.getElementById('formTitle').innerText = editIndex === -1 ? t.sec2TitleAdd : t.sec2TitleEdit;
+      document.getElementById('submitBtn').innerText = editIndex === -1 ? t.btnAddItem : t.btnSaveEdit;
+    }
+
+    let db = { currentId: null, parties: [] };
+    let currentParty = { id: '', partyName: '', members: [], items: [], paymentInfo: '', settlementMode: 'minimal', collectorId: '' };
 
     window.onload = () => {
       loadDB();
+      applyLanguage();
       if (db.parties.length === 0) {
         createNewParty(false);
       } else {
@@ -216,42 +423,31 @@
     function loadDB() {
       const saved = localStorage.getItem('party_splitter_db');
       if (saved) {
-        try {
-          db = JSON.parse(saved);
-        } catch(e) {
-          console.error(e);
-          db = { currentId: null, parties: [] };
-        }
+        try { db = JSON.parse(saved); } 
+        catch(e) { db = { currentId: null, parties: [] }; }
       }
     }
 
     function saveDB() {
       const index = db.parties.findIndex(p => p.id === currentParty.id);
-      if (index !== -1) {
-        db.parties[index] = currentParty;
-      } else {
-        db.parties.unshift(currentParty);
-      }
+      if (index !== -1) db.parties[index] = currentParty;
+      else db.parties.unshift(currentParty);
       db.currentId = currentParty.id;
       localStorage.setItem('party_splitter_db', JSON.stringify(db));
     }
 
     function createNewParty(showAlert = true) {
-      const newId = 'party_' + Date.now();
+      const t = i18nConfig[currentLang];
       const newParty = {
-        id: newId,
-        partyName: '未命名聚會 (' + new Date().toLocaleDateString() + ')',
-        members: [],
-        items: [],
-        paymentInfo: '',
-        settlementMode: 'minimal',
-        collectorId: ''
+        id: 'party_' + Date.now(),
+        partyName: `${t.defaultPartyName} (${new Date().toLocaleDateString()})`,
+        members: [], items: [], paymentInfo: '', settlementMode: 'minimal', collectorId: ''
       };
       db.parties.unshift(newParty);
       currentParty = newParty;
       saveDB();
       renderAll();
-      if (showAlert) alert('已成功建立新聚會！');
+      if (showAlert) alert(t.alertNewPartySuccess);
     }
 
     function switchParty(partyId) {
@@ -266,11 +462,12 @@
     }
 
     function deleteCurrentParty() {
+      const t = i18nConfig[currentLang];
       if (db.parties.length <= 1) {
-        alert('最少需要保留一個聚會紀錄！');
+        alert(t.alertAtLeastOneParty);
         return;
       }
-      if (confirm(`確定要刪除「${currentParty.partyName || '此聚會'}」嗎？`)) {
+      if (confirm(`${t.confirmDeleteParty} (${currentParty.partyName || ''})`)) {
         db.parties = db.parties.filter(p => p.id !== currentParty.id);
         currentParty = db.parties[0];
         saveDB();
@@ -303,10 +500,11 @@
     }
 
     function updateSelectorDropdown() {
+      const t = i18nConfig[currentLang];
       const selector = document.getElementById('partySelector');
       selector.innerHTML = db.parties.map(p => `
         <option value="${p.id}" ${p.id === currentParty.id ? 'selected' : ''}>
-          ${p.partyName || '未命名聚會'} (${p.items.length} 筆消費)
+          ${p.partyName || t.defaultPartyName} (${p.items.length})
         </option>
       `).join('');
     }
@@ -332,29 +530,26 @@
     }
 
     function copyJsonText(elementId) {
+      const t = i18nConfig[currentLang];
       const textarea = document.getElementById(elementId);
       textarea.select();
-      navigator.clipboard.writeText(textarea.value).then(() => {
-        alert('已成功複製 JSON 至剪貼簿！');
-      });
+      navigator.clipboard.writeText(textarea.value).then(() => alert(t.alertCopySuccess));
     }
 
-    // 📥 智慧極簡匯入：動態偵測衝突並詢問 Overwrite 或 Append
     function importPartyJson() {
       const raw = document.getElementById('importTextarea').value.trim();
+      const t = i18nConfig[currentLang];
 
       if (!raw) {
-        alert('請先貼上 JSON 字串！');
+        alert(t.alertEmptyImport);
         return;
       }
 
       try {
         const imported = JSON.parse(raw);
 
-        // 1. 全資料庫備份還原 (Export All 產生的格式)
         if (imported.parties && Array.isArray(imported.parties)) {
-          if (!confirm(`📦 檢測到「全資料庫備份」！\n\n是否還原這 ${imported.parties.length} 個聚會？（注意：這將完全覆蓋你目前的本地紀錄）`)) return;
-          
+          if (!confirm(t.confirmDbRestore)) return;
           db = imported;
           if (!db.parties.some(p => p.id === db.currentId)) {
             db.currentId = db.parties.length > 0 ? db.parties[0].id : null;
@@ -362,59 +557,48 @@
           currentParty = db.parties.find(p => p.id === db.currentId) || db.parties[0];
           saveDB();
           renderAll();
-          alert('🎉 成功還原整包資料庫！');
-        } 
-        // 2. 單一 Party 匯入
-        else if (imported.id && Array.isArray(imported.members) && Array.isArray(imported.items)) {
+          alert(t.alertDbRestoreSuccess);
+        } else if (imported.id && Array.isArray(imported.members) && Array.isArray(imported.items)) {
           const existingIndex = db.parties.findIndex(p => p.id === imported.id);
 
           if (existingIndex !== -1) {
-            // 💡 當發現本地已存在同名/同 ID 聚會時，才跳出對話框詢問！
-            const isOverwrite = confirm(
-              `⚠️ 本地已存在相同的聚會「${imported.partyName || '未命名'}」！\n\n` +
-              `【按「確定」】➡️ 覆蓋 (Overwrite) 原有紀錄\n` +
-              `【按「取消」】➡️ 另存為獨立副本追加 (Append)`
-            );
-
+            const isOverwrite = confirm(t.confirmPartyOverwrite);
             if (isOverwrite) {
               db.parties[existingIndex] = imported;
               currentParty = imported;
-              alert('🎉 已覆蓋舊有聚會紀錄！');
+              alert(t.alertOverwriteSuccess);
             } else {
-              let newPartyCopy = { ...imported, id: 'party_' + Date.now(), partyName: (imported.partyName || '匯入聚會') + ' (副本)' };
+              let newPartyCopy = { ...imported, id: 'party_' + Date.now(), partyName: (imported.partyName || 'Imported') + ' (Copy)' };
               db.parties.unshift(newPartyCopy);
               currentParty = newPartyCopy;
-              alert('🎉 已作為副本追加至聚會清單！');
+              alert(t.alertAppendSuccess);
             }
           } else {
-            // 沒有衝突，直接安全追加
             db.parties.unshift(imported);
             currentParty = imported;
-            alert('🎉 成功載入新聚會！');
+            alert(t.alertImportNewSuccess);
           }
-
           saveDB();
           renderAll();
         } else {
-          alert('格式無法辨識：請確認貼上的是有效的聚會 JSON 文字！');
+          alert(t.alertFormatError);
           return;
         }
 
         document.getElementById('importPanel').style.display = 'none';
         document.getElementById('importTextarea').value = '';
-
       } catch(e) {
-        alert('解析失敗：貼上的文字不完整或格式有誤！');
-        console.error(e);
+        alert(t.alertFormatError);
       }
     }
 
     function updateMembers() {
+      const t = i18nConfig[currentLang];
       const input = document.getElementById('memberInput').value;
       const newNames = input.split(/[,，]/).map(n => n.trim()).filter(n => n !== '');
       
       if (newNames.length === 0) {
-        alert('成員名單數量不能為空！');
+        alert(t.alertMembersEmpty);
         return;
       }
 
@@ -445,16 +629,13 @@
       });
 
       const validIds = newMembers.map(m => m.id);
-      currentParty.items = currentParty.items.map(item => {
-        return {
-          ...item,
-          payerId: validIds.includes(item.payerId) ? item.payerId : newMembers[0].id,
-          splitWith: item.splitWith.filter(id => validIds.includes(id))
-        };
-      });
+      currentParty.items = currentParty.items.map(item => ({
+        ...item,
+        payerId: validIds.includes(item.payerId) ? item.payerId : newMembers[0].id,
+        splitWith: item.splitWith.filter(id => validIds.includes(id))
+      }));
 
       currentParty.members = newMembers;
-      
       if (!validIds.includes(currentParty.collectorId) && newMembers.length > 0) {
         currentParty.collectorId = newMembers[0].id;
       }
@@ -464,6 +645,7 @@
     }
 
     function renderAll() {
+      applyLanguage();
       updateSelectorDropdown();
       document.getElementById('partyName').value = currentParty.partyName || '';
       document.getElementById('memberInput').value = currentParty.members.map(m => m.name).join(', ');
@@ -493,8 +675,9 @@
     }
 
     function saveItem() {
+      const t = i18nConfig[currentLang];
       if (currentParty.members.length === 0) {
-        alert('請先設定成員名單並點擊「更新成員名單」！');
+        alert(t.alertMembersEmpty);
         return;
       }
 
@@ -505,7 +688,7 @@
       const editIndex = parseInt(document.getElementById('editIndex').value);
 
       if (!name || isNaN(cost) || cost <= 0 || checkedIds.length === 0) {
-        alert('請填寫完整項目名稱、有效金額及至少一位分攤成員！');
+        alert(t.alertFillItemError);
         return;
       }
 
@@ -518,7 +701,6 @@
 
       document.getElementById('itemName').value = '';
       document.getElementById('itemCost').value = '';
-      
       saveDB();
       renderAll();
     }
@@ -538,10 +720,8 @@
         cb.checked = item.splitWith.includes(cb.value);
       });
 
-      document.getElementById('formTitle').innerText = '2. 修改消費項目';
-      document.getElementById('submitBtn').innerText = '儲存修改';
+      applyLanguage();
       document.getElementById('cancelBtn').style.display = 'block';
-      
       window.scrollTo({ top: 350, behavior: 'smooth' });
     }
 
@@ -549,16 +729,16 @@
       document.getElementById('itemName').value = '';
       document.getElementById('itemCost').value = '';
       document.getElementById('editIndex').value = '-1';
-      document.getElementById('formTitle').innerText = '2. 新增消費項目';
-      document.getElementById('submitBtn').innerText = '加入項目';
       document.getElementById('cancelBtn').style.display = 'none';
+      applyLanguage();
 
       const checkboxes = document.querySelectorAll('#splitCheckboxes input');
       checkboxes.forEach(cb => cb.checked = true);
     }
 
     function removeItem(id) {
-      if (confirm('確定要刪除此項目嗎？')) {
+      const t = i18nConfig[currentLang];
+      if (confirm(t.alertDeleteItemConfirm)) {
         currentParty.items = currentParty.items.filter(i => i.id !== id);
         resetForm();
         saveDB();
@@ -567,31 +747,33 @@
     }
 
     function getMemberName(id) {
+      const t = i18nConfig[currentLang];
       const m = currentParty.members.find(member => member.id === id);
-      return m ? m.name : '未知';
+      return m ? m.name : t.unknownMember;
     }
 
     function renderItems() {
       const list = document.getElementById('itemList');
+      const t = i18nConfig[currentLang];
       if (currentParty.items.length === 0) {
-        list.innerHTML = '<p style="color:var(--text-sub); font-size:0.85rem;">暫無項目</p>';
+        list.innerHTML = `<p style="color:var(--text-sub); font-size:0.85rem;">${t.noItemsText}</p>`;
         return;
       }
       list.innerHTML = currentParty.items.map(item => {
         const payerName = getMemberName(item.payerId);
         const isAll = item.splitWith.length === currentParty.members.length;
         const splitNames = item.splitWith.map(id => getMemberName(id)).join(', ');
-        const splitDesc = isAll ? '全體平分' : `${item.splitWith.length} 人 (${splitNames})`;
+        const splitDesc = isAll ? t.allSplitText : `${item.splitWith.length} ${t.peopleSuffix} (${splitNames})`;
         
         return `
           <div class="item-row">
             <div class="item-info">
               <strong>${item.name}</strong> - $${item.cost} 
-              <br><small style="color:var(--text-sub)">${payerName} 付款 | 分攤: ${splitDesc}</small>
+              <br><small style="color:var(--text-sub)">${payerName} Paid | Split: ${splitDesc}</small>
             </div>
             <div class="item-actions">
-              <button class="btn-warning" onclick="editItem(${item.id})">修改</button>
-              <button class="btn-danger" onclick="removeItem(${item.id})">刪除</button>
+              <button class="btn-warning" onclick="editItem(${item.id})">${t.editBtnText}</button>
+              <button class="btn-danger" onclick="removeItem(${item.id})">${t.deleteBtnText}</button>
             </div>
           </div>
         `;
@@ -601,21 +783,18 @@
     let currentTotals = {};
 
     function calculate() {
+      const t = i18nConfig[currentLang];
       let totals = {};
       currentParty.members.forEach(m => totals[m.id] = { id: m.id, name: m.name, shouldPay: 0, paid: 0, net: 0 });
 
       let totalCost = 0;
       currentParty.items.forEach(item => {
         totalCost += item.cost;
-        if (totals[item.payerId] !== undefined) {
-          totals[item.payerId].paid += item.cost;
-        }
+        if (totals[item.payerId] !== undefined) totals[item.payerId].paid += item.cost;
         if (item.splitWith.length > 0) {
           const perPerson = item.cost / item.splitWith.length;
           item.splitWith.forEach(id => {
-            if (totals[id] !== undefined) {
-              totals[id].shouldPay += perPerson;
-            }
+            if (totals[id] !== undefined) totals[id].shouldPay += perPerson;
           });
         }
       });
@@ -639,17 +818,17 @@
 
       let summaryHtml = '';
       if (currentParty.members.length === 0) {
-        summaryHtml = '<tr><td colspan="4" style="text-align:center; color:var(--text-sub);">請先設定成員名單</td></tr>';
+        summaryHtml = `<tr><td colspan="4" style="text-align:center; color:var(--text-sub);">${t.needMembers}</td></tr>`;
       } else {
         currentParty.members.forEach(m => {
-          const t = totals[m.id] || { shouldPay: 0, paid: 0, net: 0 };
-          const net = t.paid - t.shouldPay;
-          t.net = net;
+          const tot = totals[m.id] || { shouldPay: 0, paid: 0, net: 0 };
+          const net = tot.paid - tot.shouldPay;
+          tot.net = net;
           summaryHtml += `
             <tr>
               <td><strong>${m.name}</strong></td>
-              <td>$${Math.round(t.shouldPay)}</td>
-              <td>$${Math.round(t.paid)}</td>
+              <td>$${Math.round(tot.shouldPay)}</td>
+              <td>$${Math.round(tot.paid)}</td>
               <td style="color:${net >= 0 ? 'var(--accent)' : 'var(--danger)'}">
                 ${net >= 0 ? '+' : ''}$${Math.round(net)}
               </td>
@@ -683,33 +862,31 @@
         }
       } else {
         const collectorName = getMemberName(currentParty.collectorId);
+        const colSuffix = t.collectorSuffix;
         
         currentParty.members.forEach(m => {
           if (m.id !== currentParty.collectorId) {
             const net = totals[m.id].net;
-            if (net < -0.5) {
-              transactions.push(`${m.name} ➡️ ${collectorName} (大掌櫃): $${Math.round(-net)}`);
-            }
+            if (net < -0.5) transactions.push(`${m.name} ➡️ ${collectorName}${colSuffix}: $${Math.round(-net)}`);
           }
         });
 
         currentParty.members.forEach(m => {
           if (m.id !== currentParty.collectorId) {
             const net = totals[m.id].net;
-            if (net > 0.5) {
-              transactions.push(`${collectorName} (大掌櫃) ➡️ ${m.name}: $${Math.round(net)}`);
-            }
+            if (net > 0.5) transactions.push(`${collectorName}${colSuffix} ➡️ ${m.name}: $${Math.round(net)}`);
           }
         });
       }
 
-      const planText = transactions.length > 0 ? transactions.join('\n') : (currentParty.members.length > 0 ? '🎉 全部結清，無需過數！' : '請先輸入成員');
+      const planText = transactions.length > 0 ? transactions.join('\n') : (currentParty.members.length > 0 ? t.allSettled : t.needMembers);
       document.getElementById('settlementPlan').innerText = planText;
     }
 
     function copyWhatsAppText() {
       saveDB();
-      const partyName = currentParty.partyName || 'Party';
+      const t = i18nConfig[currentLang];
+      const partyName = currentParty.partyName || t.defaultPartyName;
       const plan = document.getElementById('settlementPlan').innerText;
       const payment = currentParty.paymentInfo;
       const mode = currentParty.settlementMode || 'minimal';
@@ -717,32 +894,35 @@
 
       let totalCost = currentParty.items.reduce((sum, item) => sum + item.cost, 0);
 
-      let text = `🎉 *${partyName} 結算報告*\n`;
-      text += `💰 總消費 (Total)：$${Math.round(totalCost)}\n`;
-      text += `----------------------\n`;
-      text += `📊 *個人明細表：*\n`;
+      let text = currentLang === 'zh' ? 
+        `🎉 *${partyName} 結算報告*\n💰 總消費 (Total)：$${Math.round(totalCost)}\n----------------------\n📊 *個人明細表：*\n` :
+        `🎉 *${partyName} Settlement Report*\n💰 Total Cost: $${Math.round(totalCost)}\n----------------------\n📊 *Individual Summary:*\n`;
       
       currentParty.members.forEach(m => {
-        const t = currentTotals[m.id] || { shouldPay: 0, paid: 0, net: 0 };
-        const netStr = t.net >= 0 ? `+$${Math.round(t.net)}` : `-$${Math.round(-t.net)}`;
-        text += `• *${m.name}* | 應付:$${Math.round(t.shouldPay)} | 已付:$${Math.round(t.paid)} | 淨額:${netStr}\n`;
+        const tot = currentTotals[m.id] || { shouldPay: 0, paid: 0, net: 0 };
+        const netStr = tot.net >= 0 ? `+$${Math.round(tot.net)}` : `-$${Math.round(-tot.net)}`;
+        text += currentLang === 'zh' ? 
+          `• *${m.name}* | 應付:$${Math.round(tot.shouldPay)} | 已付:$${Math.round(tot.paid)} | 淨額:${netStr}\n` :
+          `• *${m.name}* | Pay:$${Math.round(tot.shouldPay)} | Paid:$${Math.round(tot.paid)} | Net:${netStr}\n`;
       });
 
       text += `----------------------\n`;
-      if (mode === 'collector') {
-        text += `👉 *建議過數方案 (大掌櫃模式: ${collectorName})：*\n${plan}\n`;
+      if (currentLang === 'zh') {
+        text += mode === 'collector' ? 
+          `👉 *建議過數方案 (大掌櫃模式: ${collectorName})：*\n${plan}\n` : 
+          `👉 *建議過數方案 (最簡過數)：*\n${plan}\n`;
       } else {
-        text += `👉 *建議過數方案 (最簡過數)：*\n${plan}\n`;
+        text += mode === 'collector' ? 
+          `👉 *Transfer Plan (Collector: ${collectorName}):*\n${plan}\n` : 
+          `👉 *Transfer Plan (Minimal):*\n${plan}\n`;
       }
       
       if (payment) {
         text += `----------------------\n`;
-        text += `💳 *收款資料：*\n${payment}\n`;
+        text += currentLang === 'zh' ? `💳 *收款資料：*\n${payment}\n` : `💳 *Payment Info:*\n${payment}\n`;
       }
 
-      navigator.clipboard.writeText(text).then(() => {
-        alert('已成功複製完整結算明細至剪貼簿！可以直接貼到 WhatsApp');
-      });
+      navigator.clipboard.writeText(text).then(() => alert(t.alertWhatsAppCopySuccess));
     }
   </script>
 </body>
