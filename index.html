@@ -50,6 +50,8 @@
     button.btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); width: auto; padding: 6px 12px; font-size: 0.8rem; }
     button.btn-secondary { background: #475569; color: #fff; margin-top: 6px; }
     button.btn-accent { background: var(--accent); color: #000; margin-top: 14px; }
+    button.btn-info { background: transparent; color: var(--primary); border: 1px solid var(--primary); width: auto; padding: 2px 6px; font-size: 0.75rem; margin-left: 4px; }
+    
     .member-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .tag { background: #334155; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
     .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
@@ -67,7 +69,7 @@
 
     .table-container { overflow-x: auto; margin-top: 8px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border-color); }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
     th { color: var(--text-sub); }
     .total-banner { background: #0f172a; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color); }
     .total-banner span { font-size: 1.1rem; color: var(--accent); font-weight: bold; }
@@ -80,7 +82,7 @@
 
   <div class="header-container">
     <h1 data-i18n="appTitle">🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v3.0.0</span>
+    <span class="version-badge">v3.1.0</span>
     <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 繁中</button>
   </div>
 
@@ -212,11 +214,9 @@
   <script>
     /* ==========================================================================
        ⚙️ 全域語系字典與設定參數 (i18n Parameter Configuration)
-       你可以隨時在這裡修改或擴充各語言的文字！
        ========================================================================== */
     const i18nConfig = {
       zh: {
-        // 全局 UI 標籤
         appTitle: "🎉 Party 夾錢計算器",
         sec0Title: "📁 聚會存檔與 JSON 協作",
         labelSwitchParty: "切換歷史聚會",
@@ -267,7 +267,12 @@
         paymentPlaceholder: "例如：Eddy FPS 91234567 / PayMe link",
         btnCopyWhatsApp: "📋 複製完整結算明細表 (WhatsApp)",
 
-        // 動態渲染與彈窗訊息 (Dynamic Alerts & Text)
+        btnBreakdown: "🔍 明細",
+        breakdownTitle: "的消費明細 Break Down",
+        breakdownItemPaid: "代付項目",
+        breakdownItemSplit: "參與分攤項目",
+        breakdownNoData: "尚無相關消費紀錄",
+
         collectorSuffix: " (大掌櫃)",
         allSettled: "🎉 全部結清，無需過數！",
         needMembers: "請先輸入成員",
@@ -346,6 +351,12 @@
         paymentPlaceholder: "e.g., Eddy FPS 91234567 / PayMe link",
         btnCopyWhatsApp: "📋 Copy WhatsApp Summary Report",
 
+        btnBreakdown: "🔍 Detail",
+        breakdownTitle: "'s Expense Breakdown",
+        breakdownItemPaid: "Items Paid For",
+        breakdownItemSplit: "Items Split In",
+        breakdownNoData: "No expense records",
+
         collectorSuffix: " (Collector)",
         allSettled: "🎉 All settled, no transfers needed!",
         needMembers: "Please enter members first",
@@ -384,23 +395,19 @@
       renderAll();
     }
 
-    // 自動語系綁定（利用 HTML data-i18n 與 data-i18n-ph 屬性）
     function applyLanguage() {
       const t = i18nConfig[currentLang];
       
-      // 替換普通文字內容
       document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (t[key]) el.innerText = t[key];
       });
 
-      // 替換 Placeholder 內容
       document.querySelectorAll('[data-i18n-ph]').forEach(el => {
         const key = el.getAttribute('data-i18n-ph');
         if (t[key]) el.placeholder = t[key];
       });
 
-      // 動態更新編輯狀態下的 Form 標題與按鈕
       const editIndex = parseInt(document.getElementById('editIndex').value);
       document.getElementById('formTitle').innerText = editIndex === -1 ? t.sec2TitleAdd : t.sec2TitleEdit;
       document.getElementById('submitBtn').innerText = editIndex === -1 ? t.btnAddItem : t.btnSaveEdit;
@@ -752,6 +759,45 @@
       return m ? m.name : t.unknownMember;
     }
 
+    // 🔍 查詢單一成員的 Break Down 彈窗
+    function showMemberBreakdown(memberId) {
+      const t = i18nConfig[currentLang];
+      const memberName = getMemberName(memberId);
+      
+      let paidItems = [];
+      let splitItems = [];
+      let totalPaid = 0;
+      let totalShouldPay = 0;
+
+      currentParty.items.forEach(item => {
+        // 先墊付款項
+        if (item.payerId === memberId) {
+          paidItems.push(`• ${item.name}: $${item.cost}`);
+          totalPaid += item.cost;
+        }
+
+        // 參與分攤
+        if (item.splitWith.includes(memberId)) {
+          const share = item.cost / item.splitWith.length;
+          splitItems.push(`• ${item.name}: $${Math.round(share)} ($${item.cost} / ${item.splitWith.length}${t.peopleSuffix})`);
+          totalShouldPay += share;
+        }
+      });
+
+      let msg = `📌 ${memberName} ${t.breakdownTitle}\n\n`;
+      msg += `💳 ${t.breakdownItemPaid} (Total $${Math.round(totalPaid)}):\n`;
+      msg += paidItems.length > 0 ? paidItems.join('\n') + '\n\n' : `  (${t.breakdownNoData})\n\n`;
+      
+      msg += `🍕 ${t.breakdownItemSplit} (Total $${Math.round(totalShouldPay)}):\n`;
+      msg += splitItems.length > 0 ? splitItems.join('\n') + '\n\n' : `  (${t.breakdownNoData})\n\n`;
+
+      const net = totalPaid - totalShouldPay;
+      const netStr = net >= 0 ? `+$${Math.round(net)}` : `-$${Math.round(-net)}`;
+      msg += `------------------------\n📊 ${t.thNet}: ${netStr}`;
+
+      alert(msg);
+    }
+
     function renderItems() {
       const list = document.getElementById('itemList');
       const t = i18nConfig[currentLang];
@@ -826,7 +872,10 @@
           tot.net = net;
           summaryHtml += `
             <tr>
-              <td><strong>${m.name}</strong></td>
+              <td>
+                <strong>${m.name}</strong>
+                <button class="btn-info" onclick="showMemberBreakdown('${m.id}')">${t.btnBreakdown}</button>
+              </td>
               <td>$${Math.round(tot.shouldPay)}</td>
               <td>$${Math.round(tot.paid)}</td>
               <td style="color:${net >= 0 ? 'var(--accent)' : 'var(--danger)'}">
