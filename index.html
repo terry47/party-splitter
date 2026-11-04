@@ -48,17 +48,17 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v1.6.0</span>
+    <span class="version-badge">v1.5.1</span>
   </div>
 
   <!-- 1. Party 設定 -->
   <div class="card">
     <h2>1. 聚會與成員設定</h2>
     <label>Party 名稱</label>
-    <input type="text" id="partyName" placeholder="例如：10/18 蛙＋馬 Party">
+    <input type="text" id="partyName" placeholder="例如：10/18 聚會">
     
     <label>成員名單（以逗號隔開）</label>
-    <input type="text" id="memberInput" placeholder="Terry, Eddy, Anna, Carrie, Roiphy, Sammy">
+    <input type="text" id="memberInput" placeholder="例如：Terry, Eddy, Anna, Sammy">
     <button onclick="updateMembers()">更新成員名單</button>
     <div class="member-tags" id="memberTags"></div>
   </div>
@@ -93,7 +93,7 @@
   <div class="card">
     <h2>3. 預設收款資料 (選填)</h2>
     <label>轉數快 (FPS) / PayMe 追數備註</label>
-    <input type="text" id="paymentInfo" placeholder="例如：Eddy FPS 91234567 / Anna PayMe link">
+    <input type="text" id="paymentInfo" placeholder="例如：Eddy FPS 91234567">
   </div>
 
   <!-- 4. 結算結果 -->
@@ -115,20 +115,10 @@
   </div>
 
   <script>
+    // 移除了 Dummy Data，預設為空
     let state = {
-      partyName: '10/18 蛙＋馬 Party',
-      members: [
-        { id: 'm1', name: 'Terry' },
-        { id: 'm2', name: 'Eddy' },
-        { id: 'm3', name: 'Anna' },
-        { id: 'm4', name: 'Carrie' },
-        { id: 'm5', name: 'Roiphy' },
-        { id: 'm6', name: 'Sammy' },
-        { id: 'm7', name: '猩猩' },
-        { id: 'm8', name: '馬' },
-        { id: 'm9', name: 'Athena' },
-        { id: 'm10', name: 'Anthea' }
-      ],
+      partyName: '',
+      members: [],
       items: [],
       paymentInfo: ''
     };
@@ -177,42 +167,32 @@
         return;
       }
 
-      // 🧠 智慧智慧配對演算法 (Smart Name Mapping)
       let oldMembersMap = new Map(state.members.map(m => [m.name, m.id]));
-      let usedIds = new Set();
       let unassignedOldMembers = [...state.members];
-
       let newMembers = [];
 
-      // 第一輪：精確比對名字（如果名字沒變，直接保留 ID）
       newNames.forEach(name => {
         if (oldMembersMap.has(name)) {
           let id = oldMembersMap.get(name);
           newMembers.push({ id, name });
-          usedIds.add(id);
           unassignedOldMembers = unassignedOldMembers.filter(m => m.id !== id);
         } else {
-          newMembers.push(null); // 暫存位子給改名的人
+          newMembers.push(null);
         }
       });
 
-      // 第二輪：處理改名（把新輸入但找不到原名的位置，配對給舊名單中「剛好消失」的人）
       newMembers.forEach((item, idx) => {
         if (item === null) {
           let name = newNames[idx];
           if (unassignedOldMembers.length > 0) {
-            // 抓取第一個被替換掉的舊成員 ID（例如 Sammy 改成 Sammy1）
             let oldMember = unassignedOldMembers.shift();
             newMembers[idx] = { id: oldMember.id, name: name };
-            usedIds.add(oldMember.id);
           } else {
-            // 真的完全是新加入的人
             newMembers[idx] = { id: 'm_new_' + Date.now() + '_' + idx, name: name };
           }
         }
       });
 
-      // 清理已記錄項目中失效的 memberId
       const validIds = newMembers.map(m => m.id);
       state.items = state.items.map(item => {
         return {
@@ -243,6 +223,11 @@
     }
 
     function saveItem() {
+      if (state.members.length === 0) {
+        alert('請先設定成員名單並點擊「更新成員名單」！');
+        return;
+      }
+
       const name = document.getElementById('itemName').value.trim();
       const cost = parseFloat(document.getElementById('itemCost').value);
       const payerId = document.getElementById('itemPayer').value;
@@ -351,36 +336,42 @@
         if (totals[item.payerId] !== undefined) {
           totals[item.payerId].paid += item.cost;
         }
-        const perPerson = item.cost / item.splitWith.length;
-        item.splitWith.forEach(id => {
-          if (totals[id] !== undefined) {
-            totals[id].shouldPay += perPerson;
-          }
-        });
+        if (item.splitWith.length > 0) {
+          const perPerson = item.cost / item.splitWith.length;
+          item.splitWith.forEach(id => {
+            if (totals[id] !== undefined) {
+              totals[id].shouldPay += perPerson;
+            }
+          });
+        }
       });
 
       let summaryHtml = '';
       let debtors = [];
       let creditors = [];
 
-      state.members.forEach(m => {
-        const t = totals[m.id];
-        const net = t.paid - t.shouldPay;
-        t.net = net;
-        summaryHtml += `
-          <tr>
-            <td><strong>${m.name}</strong></td>
-            <td>$${Math.round(t.shouldPay)}</td>
-            <td>$${Math.round(t.paid)}</td>
-            <td style="color:${net >= 0 ? 'var(--accent)' : 'var(--danger)'}">
-              ${net >= 0 ? '+' : ''}$${Math.round(net)}
-            </td>
-          </tr>
-        `;
+      if (state.members.length === 0) {
+        summaryHtml = '<tr><td colspan="4" style="text-align:center; color:var(--text-sub);">請先設定成員名單</td></tr>';
+      } else {
+        state.members.forEach(m => {
+          const t = totals[m.id] || { shouldPay: 0, paid: 0, net: 0 };
+          const net = t.paid - t.shouldPay;
+          t.net = net;
+          summaryHtml += `
+            <tr>
+              <td><strong>${m.name}</strong></td>
+              <td>$${Math.round(t.shouldPay)}</td>
+              <td>$${Math.round(t.paid)}</td>
+              <td style="color:${net >= 0 ? 'var(--accent)' : 'var(--danger)'}">
+                ${net >= 0 ? '+' : ''}$${Math.round(net)}
+              </td>
+            </tr>
+          `;
 
-        if (net < -0.5) debtors.push({ name: m.name, amount: -net });
-        if (net > 0.5) creditors.push({ name: m.name, amount: net });
-      });
+          if (net < -0.5) debtors.push({ name: m.name, amount: -net });
+          if (net > 0.5) creditors.push({ name: m.name, amount: net });
+        });
+      }
 
       document.getElementById('summaryTable').innerHTML = summaryHtml;
 
@@ -397,7 +388,7 @@
         if (creditors[j].amount < 0.5) j++;
       }
 
-      const planText = transactions.length > 0 ? transactions.join('\n') : '🎉 全部結清，無需過數！';
+      const planText = transactions.length > 0 ? transactions.join('\n') : (state.members.length > 0 ? '🎉 全部結清，無需過數！' : '請先輸入成員');
       document.getElementById('settlementPlan').innerText = planText;
     }
 
