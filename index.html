@@ -15,6 +15,7 @@
       --primary-hover: #0284c7;
       --accent: #22c55e;
       --danger: #ef4444;
+      --warning: #f59e0b;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: var(--bg-color); color: var(--text-main); padding: 16px; max-width: 600px; margin: 0 auto; line-height: 1.5; }
@@ -25,7 +26,10 @@
     input[type="text"], input[type="number"], select { width: 100%; padding: 10px; background: #0f172a; border: 1px solid var(--border-color); border-radius: 6px; color: #fff; font-size: 0.95rem; margin-bottom: 10px; }
     button { width: 100%; padding: 10px; background: var(--primary); color: #0f172a; font-weight: bold; border: none; border-radius: 6px; font-size: 0.95rem; cursor: pointer; transition: 0.2s; }
     button:hover { background: var(--primary-hover); }
+    .btn-group { display: flex; gap: 6px; }
     button.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); width: auto; padding: 4px 8px; font-size: 0.8rem; }
+    button.btn-warning { background: transparent; color: var(--warning); border: 1px solid var(--warning); width: auto; padding: 4px 8px; font-size: 0.8rem; }
+    button.btn-secondary { background: #475569; color: #fff; margin-top: 6px; }
     .member-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .tag { background: #334155; color: #fff; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; }
     .checkbox-group { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; background: #0f172a; padding: 8px; border-radius: 6px; }
@@ -56,7 +60,9 @@
 
   <!-- 2. 消費項目 -->
   <div class="card">
-    <h2>2. 新增消費項目</h2>
+    <h2 id="formTitle">2. 新增消費項目</h2>
+    <input type="hidden" id="editIndex" value="-1">
+    
     <label>項目名稱</label>
     <input type="text" id="itemName" placeholder="例如：PIZZA / 租場費">
     
@@ -69,10 +75,11 @@
     <label>分攤成員（預設全員）</label>
     <div class="checkbox-group" id="splitCheckboxes"></div>
     
-    <button onclick="addItem()">加入項目</button>
+    <button id="submitBtn" onclick="saveItem()">加入項目</button>
+    <button id="cancelBtn" onclick="resetForm()" class="btn-secondary" style="display:none;">取消編輯</button>
 
     <div style="margin-top: 16px;">
-      <h3>已項目列表</h3>
+      <h3>已記錄項目列表</h3>
       <div id="itemList"></div>
     </div>
   </div>
@@ -110,7 +117,6 @@
       paymentInfo: ''
     };
 
-    // 載入與初始化
     window.onload = () => {
       const saved = localStorage.getItem('party_splitter_data');
       if (saved) {
@@ -140,14 +146,11 @@
     }
 
     function renderAll() {
-      // Tags
       document.getElementById('memberTags').innerHTML = state.members.map(m => `<span class="tag">${m}</span>`).join('');
       
-      // Payers Select
       const payerSelect = document.getElementById('itemPayer');
       payerSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
       
-      // Split Checkboxes
       const checkboxes = document.getElementById('splitCheckboxes');
       checkboxes.innerHTML = state.members.map(m => `
         <label><input type="checkbox" value="${m}" checked> ${m}</label>
@@ -157,18 +160,27 @@
       calculate();
     }
 
-    function addItem() {
+    function saveItem() {
       const name = document.getElementById('itemName').value.trim();
       const cost = parseFloat(document.getElementById('itemCost').value);
       const payer = document.getElementById('itemPayer').value;
       const checkedMembers = Array.from(document.querySelectorAll('#splitCheckboxes input:checked')).map(cb => cb.value);
+      const editIndex = parseInt(document.getElementById('editIndex').value);
 
       if (!name || isNaN(cost) || cost <= 0 || checkedMembers.length === 0) {
         alert('請填寫完整項目名稱、有效金額及至少一位分攤成員！');
         return;
       }
 
-      state.items.push({ id: Date.now(), name, cost, payer, splitWith: checkedMembers });
+      if (editIndex === -1) {
+        // 新增
+        state.items.push({ id: Date.now(), name, cost, payer, splitWith: checkedMembers });
+      } else {
+        // 更新現有項目
+        state.items[editIndex] = { ...state.items[editIndex], name, cost, payer, splitWith: checkedMembers };
+        resetForm();
+      }
+
       document.getElementById('itemName').value = '';
       document.getElementById('itemCost').value = '';
       
@@ -176,10 +188,49 @@
       saveData();
     }
 
+    function editItem(id) {
+      const index = state.items.findIndex(i => i.id === id);
+      if (index === -1) return;
+      const item = state.items[index];
+
+      document.getElementById('itemName').value = item.name;
+      document.getElementById('itemCost').value = item.cost;
+      document.getElementById('itemPayer').value = item.payer;
+      document.getElementById('editIndex').value = index;
+
+      // 勾選對應分攤成員
+      const checkboxes = document.querySelectorAll('#splitCheckboxes input');
+      checkboxes.forEach(cb => {
+        cb.checked = item.splitWith.includes(cb.value);
+      });
+
+      document.getElementById('formTitle').innerText = '2. 修改消費項目';
+      document.getElementById('submitBtn').innerText = '儲存修改';
+      document.getElementById('cancelBtn').style.display = 'block';
+      
+      window.scrollTo({ top: 250, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemCost').value = '';
+      document.getElementById('editIndex').value = '-1';
+      document.getElementById('formTitle').innerText = '2. 新增消費項目';
+      document.getElementById('submitBtn').innerText = '加入項目';
+      document.getElementById('cancelBtn').style.display = 'none';
+
+      // 恢復全選
+      const checkboxes = document.querySelectorAll('#splitCheckboxes input');
+      checkboxes.forEach(cb => cb.checked = true);
+    }
+
     function removeItem(id) {
-      state.items = state.items.filter(i => i.id !== id);
-      renderItems();
-      saveData();
+      if (confirm('確定要刪除此項目嗎？')) {
+        state.items = state.items.filter(i => i.id !== id);
+        resetForm();
+        renderItems();
+        saveData();
+      }
     }
 
     function renderItems() {
@@ -194,7 +245,10 @@
             <strong>${item.name}</strong> - $${item.cost} 
             <br><small style="color:var(--text-sub)">${item.payer} 付款 | ${item.splitWith.length} 人分攤</small>
           </div>
-          <button class="btn-danger" onclick="removeItem(${item.id})">刪除</button>
+          <div class="btn-group">
+            <button class="btn-warning" onclick="editItem(${item.id})">修改</button>
+            <button class="btn-danger" onclick="removeItem(${item.id})">刪除</button>
+          </div>
         </div>
       `).join('');
     }
@@ -239,7 +293,6 @@
 
       document.getElementById('summaryTable').innerHTML = summaryHtml;
 
-      // 最簡轉帳演算法 (Greedy Algorithm)
       let transactions = [];
       let i = 0, j = 0;
       while (i < debtors.length && j < creditors.length) {
