@@ -48,7 +48,7 @@
 
   <div class="header-container">
     <h1>🎉 Party 夾錢計算器</h1>
-    <span class="version-badge">v1.4.0</span>
+    <span class="version-badge">v1.6.0</span>
   </div>
 
   <!-- 1. Party 設定 -->
@@ -117,7 +117,18 @@
   <script>
     let state = {
       partyName: '10/18 蛙＋馬 Party',
-      members: ['Terry', 'Eddy', 'Anna', 'Carrie', 'Roiphy', 'Sammy', '猩猩', '馬', 'Athena', 'Anthea'],
+      members: [
+        { id: 'm1', name: 'Terry' },
+        { id: 'm2', name: 'Eddy' },
+        { id: 'm3', name: 'Anna' },
+        { id: 'm4', name: 'Carrie' },
+        { id: 'm5', name: 'Roiphy' },
+        { id: 'm6', name: 'Sammy' },
+        { id: 'm7', name: '猩猩' },
+        { id: 'm8', name: '馬' },
+        { id: 'm9', name: 'Athena' },
+        { id: 'm10', name: 'Anthea' }
+      ],
       items: [],
       paymentInfo: ''
     };
@@ -125,14 +136,28 @@
     window.onload = () => {
       const saved = localStorage.getItem('party_splitter_data');
       if (saved) {
-        state = JSON.parse(saved);
-        document.getElementById('partyName').value = state.partyName || '';
-        document.getElementById('memberInput').value = state.members.join(', ');
-        document.getElementById('paymentInfo').value = state.paymentInfo || '';
-      } else {
-        document.getElementById('partyName').value = state.partyName;
-        document.getElementById('memberInput').value = state.members.join(', ');
+        try {
+          const parsed = JSON.parse(saved);
+          state.partyName = parsed.partyName || '';
+          state.paymentInfo = parsed.paymentInfo || '';
+          state.items = parsed.items || [];
+          
+          if (parsed.members && parsed.members.length > 0) {
+            if (typeof parsed.members[0] === 'string') {
+              state.members = parsed.members.map((name, idx) => ({ id: 'm_' + idx + '_' + Date.now(), name }));
+            } else {
+              state.members = parsed.members;
+            }
+          }
+        } catch(e) {
+          console.error(e);
+        }
       }
+      
+      document.getElementById('partyName').value = state.partyName;
+      document.getElementById('memberInput').value = state.members.map(m => m.name).join(', ');
+      document.getElementById('paymentInfo').value = state.paymentInfo;
+      
       renderAll();
     };
 
@@ -145,18 +170,55 @@
 
     function updateMembers() {
       const input = document.getElementById('memberInput').value;
-      const newMembers = input.split(/[,，]/).map(m => m.trim()).filter(m => m !== '');
+      const newNames = input.split(/[,，]/).map(n => n.trim()).filter(n => n !== '');
       
-      if (newMembers.length === 0) {
+      if (newNames.length === 0) {
         alert('成員名單不能為空！');
         return;
       }
 
+      // 🧠 智慧智慧配對演算法 (Smart Name Mapping)
+      let oldMembersMap = new Map(state.members.map(m => [m.name, m.id]));
+      let usedIds = new Set();
+      let unassignedOldMembers = [...state.members];
+
+      let newMembers = [];
+
+      // 第一輪：精確比對名字（如果名字沒變，直接保留 ID）
+      newNames.forEach(name => {
+        if (oldMembersMap.has(name)) {
+          let id = oldMembersMap.get(name);
+          newMembers.push({ id, name });
+          usedIds.add(id);
+          unassignedOldMembers = unassignedOldMembers.filter(m => m.id !== id);
+        } else {
+          newMembers.push(null); // 暫存位子給改名的人
+        }
+      });
+
+      // 第二輪：處理改名（把新輸入但找不到原名的位置，配對給舊名單中「剛好消失」的人）
+      newMembers.forEach((item, idx) => {
+        if (item === null) {
+          let name = newNames[idx];
+          if (unassignedOldMembers.length > 0) {
+            // 抓取第一個被替換掉的舊成員 ID（例如 Sammy 改成 Sammy1）
+            let oldMember = unassignedOldMembers.shift();
+            newMembers[idx] = { id: oldMember.id, name: name };
+            usedIds.add(oldMember.id);
+          } else {
+            // 真的完全是新加入的人
+            newMembers[idx] = { id: 'm_new_' + Date.now() + '_' + idx, name: name };
+          }
+        }
+      });
+
+      // 清理已記錄項目中失效的 memberId
+      const validIds = newMembers.map(m => m.id);
       state.items = state.items.map(item => {
         return {
           ...item,
-          payer: newMembers.includes(item.payer) ? item.payer : newMembers[0],
-          splitWith: item.splitWith.filter(m => newMembers.includes(m))
+          payerId: validIds.includes(item.payerId) ? item.payerId : newMembers[0].id,
+          splitWith: item.splitWith.filter(id => validIds.includes(id))
         };
       });
 
@@ -166,14 +228,14 @@
     }
 
     function renderAll() {
-      document.getElementById('memberTags').innerHTML = state.members.map(m => `<span class="tag">${m}</span>`).join('');
+      document.getElementById('memberTags').innerHTML = state.members.map(m => `<span class="tag">${m.name}</span>`).join('');
       
       const payerSelect = document.getElementById('itemPayer');
-      payerSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
+      payerSelect.innerHTML = state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
       
       const checkboxes = document.getElementById('splitCheckboxes');
       checkboxes.innerHTML = state.members.map(m => `
-        <label><input type="checkbox" value="${m}" checked> ${m}</label>
+        <label><input type="checkbox" value="${m.id}" checked> ${m.name}</label>
       `).join('');
 
       renderItems();
@@ -183,19 +245,19 @@
     function saveItem() {
       const name = document.getElementById('itemName').value.trim();
       const cost = parseFloat(document.getElementById('itemCost').value);
-      const payer = document.getElementById('itemPayer').value;
-      const checkedMembers = Array.from(document.querySelectorAll('#splitCheckboxes input:checked')).map(cb => cb.value);
+      const payerId = document.getElementById('itemPayer').value;
+      const checkedIds = Array.from(document.querySelectorAll('#splitCheckboxes input:checked')).map(cb => cb.value);
       const editIndex = parseInt(document.getElementById('editIndex').value);
 
-      if (!name || isNaN(cost) || cost <= 0 || checkedMembers.length === 0) {
+      if (!name || isNaN(cost) || cost <= 0 || checkedIds.length === 0) {
         alert('請填寫完整項目名稱、有效金額及至少一位分攤成員！');
         return;
       }
 
       if (editIndex === -1) {
-        state.items.push({ id: Date.now(), name, cost, payer, splitWith: checkedMembers });
+        state.items.push({ id: Date.now(), name, cost, payerId, splitWith: checkedIds });
       } else {
-        state.items[editIndex] = { ...state.items[editIndex], name, cost, payer, splitWith: checkedMembers };
+        state.items[editIndex] = { ...state.items[editIndex], name, cost, payerId, splitWith: checkedIds };
         resetForm();
       }
 
@@ -213,7 +275,7 @@
 
       document.getElementById('itemName').value = item.name;
       document.getElementById('itemCost').value = item.cost;
-      document.getElementById('itemPayer').value = item.payer;
+      document.getElementById('itemPayer').value = item.payerId;
       document.getElementById('editIndex').value = index;
 
       const checkboxes = document.querySelectorAll('#splitCheckboxes input');
@@ -249,6 +311,11 @@
       }
     }
 
+    function getMemberName(id) {
+      const m = state.members.find(member => member.id === id);
+      return m ? m.name : '未知';
+    }
+
     function renderItems() {
       const list = document.getElementById('itemList');
       if (state.items.length === 0) {
@@ -256,13 +323,16 @@
         return;
       }
       list.innerHTML = state.items.map(item => {
+        const payerName = getMemberName(item.payerId);
         const isAll = item.splitWith.length === state.members.length;
-        const splitDesc = isAll ? '全體平分' : `${item.splitWith.length} 人 (${item.splitWith.join(', ')})`;
+        const splitNames = item.splitWith.map(id => getMemberName(id)).join(', ');
+        const splitDesc = isAll ? '全體平分' : `${item.splitWith.length} 人 (${splitNames})`;
+        
         return `
           <div class="item-row">
             <div>
               <strong>${item.name}</strong> - $${item.cost} 
-              <br><small style="color:var(--text-sub)">${item.payer} 付款 | 分攤: ${splitDesc}</small>
+              <br><small style="color:var(--text-sub)">${payerName} 付款 | 分攤: ${splitDesc}</small>
             </div>
             <div class="btn-group">
               <button class="btn-warning" onclick="editItem(${item.id})">修改</button>
@@ -275,16 +345,16 @@
 
     function calculate() {
       let totals = {};
-      state.members.forEach(m => totals[m] = { shouldPay: 0, paid: 0, net: 0 });
+      state.members.forEach(m => totals[m.id] = { name: m.name, shouldPay: 0, paid: 0, net: 0 });
 
       state.items.forEach(item => {
-        if (totals[item.payer] !== undefined) {
-          totals[item.payer].paid += item.cost;
+        if (totals[item.payerId] !== undefined) {
+          totals[item.payerId].paid += item.cost;
         }
         const perPerson = item.cost / item.splitWith.length;
-        item.splitWith.forEach(m => {
-          if (totals[m] !== undefined) {
-            totals[m].shouldPay += perPerson;
+        item.splitWith.forEach(id => {
+          if (totals[id] !== undefined) {
+            totals[id].shouldPay += perPerson;
           }
         });
       });
@@ -294,21 +364,22 @@
       let creditors = [];
 
       state.members.forEach(m => {
-        const net = totals[m].paid - totals[m].shouldPay;
-        totals[m].net = net;
+        const t = totals[m.id];
+        const net = t.paid - t.shouldPay;
+        t.net = net;
         summaryHtml += `
           <tr>
-            <td><strong>${m}</strong></td>
-            <td>$${Math.round(totals[m].shouldPay)}</td>
-            <td>$${Math.round(totals[m].paid)}</td>
+            <td><strong>${m.name}</strong></td>
+            <td>$${Math.round(t.shouldPay)}</td>
+            <td>$${Math.round(t.paid)}</td>
             <td style="color:${net >= 0 ? 'var(--accent)' : 'var(--danger)'}">
               ${net >= 0 ? '+' : ''}$${Math.round(net)}
             </td>
           </tr>
         `;
 
-        if (net < -0.5) debtors.push({ name: m, amount: -net });
-        if (net > 0.5) creditors.push({ name: m, amount: net });
+        if (net < -0.5) debtors.push({ name: m.name, amount: -net });
+        if (net > 0.5) creditors.push({ name: m.name, amount: net });
       });
 
       document.getElementById('summaryTable').innerHTML = summaryHtml;
